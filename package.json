@@ -1,0 +1,15 @@
+{
+  "name": "ai-survey-backend",
+  "version": "1.0.0",
+  "description": "Backend for AI Mirror Survey — saves responses to MongoDB",
+  "main": "server.js",
+  "type":"commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "mongoose": "^8.0.0"
+  }
+}

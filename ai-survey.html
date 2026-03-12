@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Mirror | مرآة الذكاء الاصطناعي</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Cairo:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050a14;
+    --surface: #0d1a2e;
+    --surface2: #0f2040;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent3: #f59e0b;
+    --text: #e2f0ff;
+    --text-dim: #6b8aa8;
+    --glow: 0 0 20px rgba(0,212,255,0.4);
+    --glow2: 0 0 30px rgba(124,58,237,0.5);
+    --bot-size: 160px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body.ar {
+    font-family: 'Cairo', sans-serif;
+    direction: rtl;
+  }
+
+  /* Animated BG */
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridMove 20s linear infinite;
+  }
+  @keyframes gridMove { from{background-position:0 0} to{background-position:60px 60px} }
+
+  .bg-orbs {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  }
+  .orb {
+    position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15;
+    animation: orbFloat 8s ease-in-out infinite;
+  }
+  .orb1 { width:400px;height:400px;background:var(--accent);top:-100px;left:-100px;animation-delay:0s; }
+  .orb2 { width:350px;height:350px;background:var(--accent2);bottom:-100px;right:-100px;animation-delay:-3s; }
+  .orb3 { width:250px;height:250px;background:var(--accent3);top:50%;left:50%;animation-delay:-6s; }
+  @keyframes orbFloat { 0%,100%{transform:translate(0,0)} 50%{transform:translate(30px,-30px)} }
+
+  /* WRAPPER */
+  .wrapper { position:relative; z-index:1; max-width:800px; margin:0 auto; padding:20px; min-height:100vh; display:flex; flex-direction:column; }
+
+  /* LANG SELECTOR */
+  .lang-screen {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; gap:40px; text-align:center;
+  }
+  .lang-title {
+    font-family:'Orbitron',monospace; font-size:clamp(24px,5vw,48px); font-weight:900;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height:1.2;
+  }
+  .lang-subtitle { color:var(--text-dim); font-size:14px; letter-spacing:2px; }
+
+  .bot-intro {
+    width:180px; height:180px; position:relative;
+    animation: botBob 3s ease-in-out infinite;
+  }
+  @keyframes botBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
+
+  .lang-btns { display:flex; gap:20px; flex-wrap:wrap; justify-content:center; }
+  .lang-btn {
+    padding:18px 48px; border:2px solid var(--accent); background:transparent;
+    color:var(--accent); cursor:pointer; font-size:18px; font-family:'Orbitron',monospace;
+    letter-spacing:2px; position:relative; overflow:hidden; transition:all 0.3s;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+  }
+  .lang-btn:hover { background:var(--accent); color:var(--bg); box-shadow:var(--glow); transform:translateY(-3px); }
+  .lang-btn.ar-btn { border-color:var(--accent2); color:var(--accent2); font-family:'Cairo',sans-serif; font-size:20px; }
+  .lang-btn.ar-btn:hover { background:var(--accent2); color:#fff; box-shadow:var(--glow2); }
+
+  /* MAIN GAME */
+  .game-screen { display:none; flex-direction:column; gap:0; flex:1; }
+  .game-screen.active { display:flex; }
+
+  /* HEADER */
+  .header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 0; border-bottom:1px solid rgba(0,212,255,0.15); margin-bottom:24px;
+  }
+  .logo { font-family:'Orbitron',monospace; font-size:16px; color:var(--accent); letter-spacing:3px; }
+  .progress-area { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .q-counter { font-size:12px; color:var(--text-dim); letter-spacing:1px; }
+  .progress-bar { width:200px; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; }
+  .progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width 0.5s ease; border-radius:2px; }
+  .restart-btn {
+    background:transparent; border:1px solid rgba(255,255,255,0.2); color:var(--text-dim);
+    padding:8px 16px; cursor:pointer; font-size:11px; letter-spacing:1px;
+    transition:all 0.3s; border-radius:4px;
+  }
+  .restart-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* BOT AREA */
+  .bot-area {
+    display:flex; flex-direction:column; align-items:center; gap:20px;
+    padding:20px 0;
+  }
+
+  /* BOT CHARACTER */
+  .bot-character {
+    width:var(--bot-size); height:var(--bot-size); position:relative;
+    animation: botBob 3s ease-in-out infinite;
+  }
+
+  .bot-svg { width:100%; height:100%; }
+
+  /* Bot reactions - CSS transforms */
+  .bot-character.reaction-thinking { animation: botThink 0.5s ease-in-out; }
+  .bot-character.reaction-happy { animation: botHappy 0.6s ease-in-out; }
+  .bot-character.reaction-shocked { animation: botShock 0.4s ease-in-out; }
+  .bot-character.reaction-sad { animation: botSad 0.5s ease-in-out; }
+  .bot-character.reaction-wow { animation: botWow 0.5s ease-in-out; }
+
+  @keyframes botThink { 0%{transform:rotate(0)} 25%{transform:rotate(-8deg)} 75%{transform:rotate(8deg)} 100%{transform:rotate(0)} }
+  @keyframes botHappy { 0%,100%{transform:scale(1) translateY(0)} 50%{transform:scale(1.15) translateY(-20px)} }
+  @keyframes botShock { 0%,100%{transform:scale(1)} 30%{transform:scale(1.2) rotate(-5deg)} 60%{transform:scale(0.95) rotate(5deg)} }
+  @keyframes botSad { 0%,100%{transform:translateY(0)} 50%{transform:translateY(10px) rotate(-3deg)} }
+  @keyframes botWow { 0%{transform:rotate(0) scale(1)} 20%{transform:rotate(-10deg) scale(1.1)} 40%{transform:rotate(10deg) scale(1.2)} 60%{transform:rotate(-5deg) scale(1.1)} 100%{transform:rotate(0) scale(1)} }
+
+  /* SPEECH BUBBLE */
+  .speech-bubble {
+    background: var(--surface); border:1px solid rgba(0,212,255,0.3);
+    border-radius:16px; padding:20px 24px; position:relative;
+    max-width:560px; width:100%; box-shadow:0 0 30px rgba(0,212,255,0.1);
+    animation: bubbleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .speech-bubble::before {
+    content:''; position:absolute; top:-12px; left:50%; transform:translateX(-50%);
+    width:0; height:0;
+    border-left:12px solid transparent; border-right:12px solid transparent;
+    border-bottom:12px solid rgba(0,212,255,0.3);
+  }
+  .speech-bubble::after {
+    content:''; position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+    width:0; height:0;
+    border-left:11px solid transparent; border-right:11px solid transparent;
+    border-bottom:11px solid var(--surface);
+  }
+  @keyframes bubbleIn { from{opacity:0;transform:scale(0.8) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
+
+  .bot-name { font-size:10px; color:var(--accent); letter-spacing:3px; margin-bottom:8px; }
+  .question-text {
+    font-size:clamp(14px,2.5vw,17px); line-height:1.7; color:var(--text);
+    font-family:inherit;
+  }
+  body.ar .question-text { font-family:'Cairo',sans-serif; font-size:clamp(15px,2.5vw,18px); }
+
+  .reaction-emoji {
+    font-size:28px; position:absolute; top:-20px; right:20px;
+    animation: emojiPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    pointer-events:none;
+  }
+  @keyframes emojiPop { from{opacity:0;transform:scale(0) rotate(-20deg)} to{opacity:1;transform:scale(1) rotate(0)} }
+
+  /* ANSWERS */
+  .answers-area {
+    display:flex; flex-direction:column; gap:10px;
+    padding:0 0 20px 0; animation: answersIn 0.5s ease 0.2s both;
+    max-width:560px; width:100%; margin:0 auto;
+  }
+  @keyframes answersIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+  .answer-btn {
+    background: rgba(13,26,46,0.8);
+    border: 1px solid rgba(0,212,255,0.2);
+    color: var(--text); padding:14px 20px;
+    cursor:pointer; text-align:left; font-family:inherit; font-size:13px;
+    border-radius:10px; transition:all 0.25s; position:relative; overflow:hidden;
+    line-height:1.5;
+  }
+  body.ar .answer-btn { text-align:right; font-family:'Cairo',sans-serif; font-size:14px; }
+  .answer-btn::before {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    opacity:0; transition:opacity 0.25s;
+  }
+  .answer-btn:hover::before { opacity:0.1; }
+  .answer-btn:hover { border-color:var(--accent); transform:translateX(4px); box-shadow:var(--glow); }
+  body.ar .answer-btn:hover { transform:translateX(-4px); }
+  .answer-btn .letter { color:var(--accent); font-weight:700; margin-right:10px; }
+  body.ar .answer-btn .letter { margin-right:0; margin-left:10px; }
+  .answer-btn span { position:relative; }
+  .answer-btn.selected { border-color:var(--accent); background:rgba(0,212,255,0.1); }
+
+  /* SCORE DISPLAY */
+  .score-pill {
+    display:flex; align-items:center; gap:8px;
+    background:rgba(0,212,255,0.08); border:1px solid rgba(0,212,255,0.2);
+    padding:8px 16px; border-radius:20px; font-size:12px;
+    color:var(--text-dim); letter-spacing:1px;
+  }
+  .score-val { color:var(--accent); font-weight:700; font-size:14px; }
+
+  /* TYPING indicator */
+  .typing {
+    display:flex; align-items:center; gap:4px; padding:8px 0;
+  }
+  .typing-dot {
+    width:8px; height:8px; background:var(--accent); border-radius:50%;
+    animation: typingBounce 1.2s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(2){animation-delay:0.2s}
+  .typing-dot:nth-child(3){animation-delay:0.4s}
+  @keyframes typingBounce { 0%,100%{transform:translateY(0);opacity:0.4} 50%{transform:translateY(-8px);opacity:1} }
+
+  /* RESULTS */
+  .result-screen {
+    display:none; flex-direction:column; align-items:center; gap:24px;
+    padding:40px 20px; text-align:center; animation:bubbleIn 0.6s ease;
+  }
+  .result-screen.active { display:flex; }
+
+  .result-bot { width:200px; height:200px; animation:botHappy 1s ease-in-out infinite; }
+
+  .result-title {
+    font-family:'Orbitron',monospace; font-size:clamp(18px,4vw,32px); font-weight:900;
+    background: linear-gradient(135deg, var(--accent3), var(--accent));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    line-height:1.3;
+  }
+  body.ar .result-title { font-family:'Cairo',sans-serif; }
+
+  .result-score-circle {
+    width:150px; height:150px; border-radius:50%;
+    border:4px solid var(--accent); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; position:relative;
+    box-shadow:var(--glow), inset 0 0 30px rgba(0,212,255,0.1);
+  }
+  .result-score-num {
+    font-family:'Orbitron',monospace; font-size:48px; font-weight:900;
+    color:var(--accent); line-height:1;
+  }
+  .result-score-label { font-size:10px; color:var(--text-dim); letter-spacing:2px; }
+
+  .result-category {
+    font-family:'Orbitron',monospace; font-size:clamp(16px,3vw,24px); color:var(--accent2);
+    padding:12px 24px; border:2px solid var(--accent2); border-radius:8px;
+    animation:pulse 2s ease-in-out infinite;
+  }
+  body.ar .result-category { font-family:'Cairo',sans-serif; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 rgba(124,58,237,0.4)} 50%{box-shadow:0 0 20px rgba(124,58,237,0.4)} }
+
+  .result-message {
+    background:var(--surface); border:1px solid rgba(0,212,255,0.2);
+    border-radius:16px; padding:20px 28px; max-width:500px;
+    font-size:clamp(13px,2vw,15px); line-height:1.8; color:var(--text);
+  }
+  body.ar .result-message { font-family:'Cairo',sans-serif; font-size:clamp(14px,2vw,16px); }
+
+  .result-bar-wrap { width:100%; max-width:400px; }
+  .result-bar-label { display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim); margin-bottom:6px; letter-spacing:1px; }
+  .result-bar-track { height:12px; background:rgba(255,255,255,0.1); border-radius:6px; overflow:hidden; }
+  .result-bar-fill {
+    height:100%; border-radius:6px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));
+    transition:width 1.5s cubic-bezier(0.34,1.1,0.64,1);
+    box-shadow:0 0 12px rgba(0,212,255,0.5);
+  }
+
+  .replay-btn {
+    padding:16px 40px; background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border:none; color:white; cursor:pointer; font-size:16px;
+    font-family:'Orbitron',monospace; letter-spacing:2px; border-radius:8px;
+    transition:all 0.3s; margin-top:10px;
+  }
+  body.ar .replay-btn { font-family:'Cairo',sans-serif; }
+  .replay-btn:hover { transform:translateY(-4px); box-shadow:var(--glow),var(--glow2); }
+
+  /* Floating particles */
+  .particles { position:fixed; inset:0; pointer-events:none; z-index:0; }
+  .particle {
+    position:absolute; width:3px; height:3px; border-radius:50%;
+    background:var(--accent); opacity:0;
+    animation:particleFall linear infinite;
+  }
+  @keyframes particleFall {
+    0%{opacity:0;transform:translateY(-20px)}
+    10%{opacity:0.6}
+    90%{opacity:0.2}
+    100%{opacity:0;transform:translateY(100vh)}
+  }
+
+  /* Scan line effect */
+  .scanline {
+    position:fixed; top:0; left:0; width:100%; height:3px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);
+    opacity:0.4; animation:scan 4s linear infinite; z-index:5; pointer-events:none;
+  }
+  @keyframes scan { 0%{top:0} 100%{top:100%} }
+
+  /* OPEN QUESTION */
+  .open-q-area { max-width:560px; width:100%; margin:0 auto; }
+  .open-textarea {
+    width:100%; background:rgba(13,26,46,0.9); border:1px solid rgba(0,212,255,0.3);
+    color:var(--text); padding:16px; font-family:inherit; font-size:14px;
+    border-radius:10px; resize:vertical; min-height:100px; outline:none;
+    transition:border-color 0.3s; line-height:1.6;
+  }
+  body.ar .open-textarea { font-family:'Cairo',sans-serif; direction:rtl; }
+  .open-textarea:focus { border-color:var(--accent); box-shadow:var(--glow); }
+  .submit-btn {
+    margin-top:12px; padding:12px 32px; background:var(--accent2); border:none;
+    color:white; cursor:pointer; font-family:inherit; font-size:14px; border-radius:8px;
+    letter-spacing:1px; transition:all 0.3s; display:block; width:100%;
+  }
+  .submit-btn:hover { background:var(--accent); box-shadow:var(--glow); transform:translateY(-2px); }
+
+  .hidden { display:none !important; }
+
+  /* Confetti burst */
+  .confetti-wrap { position:fixed; inset:0; pointer-events:none; z-index:100; }
+  .conf { position:absolute; width:8px; height:8px; opacity:0; animation:confettiFall 1.5s ease forwards; }
+  @keyframes confettiFall {
+    0%{opacity:1;transform:translateY(0) rotate(0)}
+    100%{opacity:0;transform:translateY(100px) rotate(720deg)}
+  }
+
+  /* Score part label */
+  .part-label {
+    font-size:10px; letter-spacing:3px; color:var(--accent3); text-transform:uppercase;
+    margin-bottom:4px; font-family:'Orbitron',monospace;
+  }
+
+  /* DEMOGRAPHICS SCREEN */
+  .demo-screen {
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; gap:28px; padding:30px 20px;
+  }
+  .demo-screen.active { display:flex; }
+
+  .demo-title {
+    font-family:'Orbitron',monospace; font-size:clamp(16px,3vw,26px); font-weight:900;
+    color:var(--accent); letter-spacing:2px; text-align:center;
+  }
+  body.ar .demo-title { font-family:'Cairo',sans-serif; }
+
+  .demo-subtitle { color:var(--text-dim); font-size:13px; letter-spacing:1px; text-align:center; }
+  body.ar .demo-subtitle { font-family:'Cairo',sans-serif; }
+
+  .demo-bot { width:110px; height:110px; animation:botBob 3s ease-in-out infinite; }
+
+  .demo-form {
+    display:flex; flex-direction:column; gap:20px; width:100%; max-width:520px;
+    background:var(--surface); border:1px solid rgba(0,212,255,0.2);
+    border-radius:16px; padding:28px; box-shadow:0 0 30px rgba(0,212,255,0.07);
+  }
+
+  .demo-field { display:flex; flex-direction:column; gap:8px; }
+
+  .demo-label {
+    font-size:11px; letter-spacing:2px; color:var(--accent); font-family:'Orbitron',monospace;
+    text-transform:uppercase;
+  }
+  body.ar .demo-label { font-family:'Cairo',sans-serif; letter-spacing:0; font-size:13px; }
+
+  .demo-select {
+    background:rgba(5,10,20,0.8); border:1px solid rgba(0,212,255,0.3);
+    color:var(--text); padding:13px 16px; font-family:inherit; font-size:14px;
+    border-radius:10px; outline:none; cursor:pointer; transition:border-color 0.3s;
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300d4ff' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 14px center;
+  }
+  body.ar .demo-select {
+    font-family:'Cairo',sans-serif; direction:rtl;
+    background-position:left 14px center;
+  }
+  .demo-select:focus { border-color:var(--accent); box-shadow:var(--glow); }
+  .demo-select option { background:#0d1a2e; color:var(--text); }
+
+  /* Age grid buttons */
+  .age-grid {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+  }
+  .age-btn {
+    padding:12px 8px; background:rgba(5,10,20,0.8); border:1px solid rgba(0,212,255,0.2);
+    color:var(--text-dim); cursor:pointer; border-radius:10px; font-family:inherit;
+    font-size:13px; transition:all 0.2s; text-align:center;
+  }
+  body.ar .age-btn { font-family:'Cairo',sans-serif; }
+  .age-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .age-btn.selected {
+    border-color:var(--accent); background:rgba(0,212,255,0.12);
+    color:var(--accent); box-shadow:var(--glow);
+  }
+
+  .demo-next-btn {
+    padding:15px; background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border:none; color:white; cursor:pointer; font-size:15px;
+    font-family:'Orbitron',monospace; letter-spacing:2px; border-radius:10px;
+    transition:all 0.3s; opacity:0.4; pointer-events:none;
+  }
+  body.ar .demo-next-btn { font-family:'Cairo',sans-serif; }
+  .demo-next-btn.ready { opacity:1; pointer-events:all; }
+  .demo-next-btn.ready:hover { transform:translateY(-3px); box-shadow:var(--glow),var(--glow2); }
+
+  .demo-error {
+    color:#ff6b6b; font-size:12px; text-align:center; display:none;
+  }
+  body.ar .demo-error { font-family:'Cairo',sans-serif; }
+
+  /* ── ADMIN PANEL ─────────────────────────────────────────── */
+  /* ── ADMIN PANEL — fixed full viewport, zero scroll ──────── */
+  #adminPanel {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .adm-inner {
+    width: 100%;
+    max-width: 700px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 24px 20px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .adm-icon   { font-size: 36px; line-height: 1; margin-bottom: 10px; flex-shrink:0; }
+
+  .adm-title  {
+    font-family:'Orbitron',monospace;
+    font-size: clamp(16px, 3vw, 26px);
+    font-weight: 900; letter-spacing: 3px; text-align: center;
+    background: linear-gradient(135deg, var(--accent3), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height: 1.2; flex-shrink:0; margin-bottom: 4px;
+  }
+
+  .adm-sub    {
+    font-size: 10px; color: var(--text-dim); letter-spacing: 2px;
+    text-align: center; flex-shrink:0; margin-bottom: 18px;
+  }
+
+  .adm-card   {
+    background: var(--surface); border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 14px; padding: 12px 36px; text-align: center;
+    box-shadow: 0 0 30px rgba(0,212,255,0.07);
+    display: flex; flex-direction: column; gap: 3px;
+    flex-shrink: 0; margin-bottom: 16px;
+  }
+
+  .adm-num    {
+    font-family:'Orbitron',monospace; font-size: 42px;
+    font-weight: 900; color: var(--accent); line-height: 1;
+  }
+
+  .adm-lbl    {
+    font-size: 10px; color: var(--text-dim);
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+
+  .adm-dl-btn {
+    padding: 13px 44px; flex-shrink: 0; margin-bottom: 18px;
+    background: linear-gradient(135deg,#16a34a,#15803d);
+    border: none; color: white; cursor: pointer; font-size: 14px;
+    font-family:'Orbitron',monospace; letter-spacing: 2px;
+    border-radius: 12px; transition: all 0.3s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .adm-dl-btn:hover { transform:translateY(-3px); box-shadow:0 8px 30px rgba(22,163,74,0.4); }
+
+  .adm-preview {
+    width: 100%; flex: 1; min-height: 0;
+    background: var(--surface); border: 1px solid rgba(0,212,255,0.15);
+    border-radius: 14px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 7px;
+    overflow: hidden;
+  }
+
+  .adm-preview-title {
+    font-size: 10px; color: var(--accent3); letter-spacing: 3px;
+    text-transform: uppercase; font-family:'Orbitron',monospace;
+    flex-shrink: 0;
+  }
+
+  .adm-preview-list {
+    display: flex; flex-direction: column; gap: 6px;
+    flex: 1; min-height: 0; overflow: hidden;
+  }
+
+  .adm-row {
+    background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.12);
+    border-radius: 8px; padding: 8px 12px; font-size: 11px; line-height: 1.6;
+    flex-shrink: 0;
+  }
+
+  .adm-empty {
+    color: var(--accent2); font-size: 13px; text-align: center;
+    padding: 16px; border: 1px dashed rgba(124,58,237,0.3);
+    border-radius: 10px; letter-spacing: 1px;
+  }
+
+</style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-orbs">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+</div>
+<div class="scanline"></div>
+<div class="particles" id="particles"></div>
+<div class="confetti-wrap" id="confetti"></div>
+
+<div class="wrapper">
+
+  <!-- LANG SCREEN -->
+  <div class="lang-screen" id="langScreen">
+    <div class="lang-title">AI MIRROR<br>مرآة الذكاء الاصطناعي</div>
+    <p class="lang-subtitle">CHOOSE YOUR LANGUAGE / اختر لغتك</p>
+    <div class="bot-intro">
+      <svg viewBox="0 0 180 180" class="bot-svg">
+        <!-- Bot body -->
+        <defs>
+          <radialGradient id="bodyGrad" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="#1a3a5c"/>
+            <stop offset="100%" stop-color="#0a1a2e"/>
+          </radialGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <!-- Antenna -->
+        <line x1="90" y1="20" x2="90" y2="42" stroke="#00d4ff" stroke-width="3"/>
+        <circle cx="90" cy="15" r="7" fill="#00d4ff" filter="url(#glow)"/>
+        <!-- Head -->
+        <rect x="48" y="42" width="84" height="72" rx="18" fill="url(#bodyGrad)" stroke="#00d4ff" stroke-width="2"/>
+        <!-- Eyes -->
+        <circle cx="72" cy="72" r="12" fill="#0d1a2e" stroke="#00d4ff" stroke-width="1.5"/>
+        <circle cx="108" cy="72" r="12" fill="#0d1a2e" stroke="#00d4ff" stroke-width="1.5"/>
+        <circle cx="72" cy="72" r="7" fill="#00d4ff" id="leftEye"/>
+        <circle cx="108" cy="72" r="7" fill="#00d4ff" id="rightEye"/>
+        <circle cx="74" cy="70" r="3" fill="white"/>
+        <circle cx="110" cy="70" r="3" fill="white"/>
+        <!-- Mouth -->
+        <path d="M 70 96 Q 90 108 110 96" stroke="#00d4ff" stroke-width="2.5" fill="none" stroke-linecap="round" id="mouth"/>
+        <!-- Body -->
+        <rect x="58" y="118" width="64" height="50" rx="12" fill="url(#bodyGrad)" stroke="#00d4ff" stroke-width="2"/>
+        <!-- Chest light -->
+        <circle cx="90" cy="143" r="12" fill="#0d1a2e" stroke="#7c3aed" stroke-width="1.5"/>
+        <circle cx="90" cy="143" r="7" fill="#7c3aed" opacity="0.8"/>
+        <!-- Arms -->
+        <rect x="28" y="122" width="28" height="18" rx="9" fill="url(#bodyGrad)" stroke="#00d4ff" stroke-width="1.5"/>
+        <rect x="124" y="122" width="28" height="18" rx="9" fill="url(#bodyGrad)" stroke="#00d4ff" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div class="lang-btns">
+      <button class="lang-btn" onclick="startGame('en')">ENGLISH</button>
+      <button class="lang-btn ar-btn" onclick="startGame('ar')">عربي</button>
+    </div>
+  </div>
+
+  <!-- DEMOGRAPHICS SCREEN -->
+  <div class="demo-screen" id="demoScreen">
+    <div class="demo-title" id="demoTitle">BEFORE WE BEGIN...</div>
+    <div class="demo-subtitle" id="demoSubtitle">Tell us a little about yourself 👤</div>
+    <div class="demo-bot">
+      <svg viewBox="0 0 180 180" class="bot-svg"><defs><radialGradient id="bodyGradD" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="#1a3a5c"/><stop offset="100%" stop-color="#0a1a2e"/></radialGradient><filter id="glowD"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><line x1="90" y1="20" x2="90" y2="42" stroke="#00d4ff" stroke-width="3"/><circle cx="90" cy="15" r="7" fill="#00d4ff" filter="url(#glowD)"/><rect x="48" y="42" width="84" height="72" rx="18" fill="url(#bodyGradD)" stroke="#00d4ff" stroke-width="2"/><circle cx="72" cy="72" r="12" fill="#0d1a2e" stroke="#00d4ff" stroke-width="1.5"/><circle cx="108" cy="72" r="12" fill="#0d1a2e" stroke="#00d4ff" stroke-width="1.5"/><circle cx="72" cy="72" r="7" fill="#f59e0b"/><circle cx="108" cy="72" r="7" fill="#f59e0b"/><circle cx="74" cy="70" r="3" fill="white"/><circle cx="110" cy="70" r="3" fill="white"/><path d="M 70 96 Q 90 108 110 96" stroke="#00d4ff" stroke-width="2.5" fill="none" stroke-linecap="round"/><rect x="58" y="118" width="64" height="50" rx="12" fill="url(#bodyGradD)" stroke="#00d4ff" stroke-width="2"/><circle cx="90" cy="143" r="12" fill="#0d1a2e" stroke="#f59e0b" stroke-width="1.5"/><circle cx="90" cy="143" r="7" fill="#f59e0b" opacity="0.8"/><rect x="28" y="122" width="28" height="18" rx="9" fill="url(#bodyGradD)" stroke="#00d4ff" stroke-width="1.5"/><rect x="124" y="122" width="28" height="18" rx="9" fill="url(#bodyGradD)" stroke="#00d4ff" stroke-width="1.5"/></svg>
+    </div>
+    <div class="demo-form">
+      <div class="demo-field">
+        <div class="demo-label" id="ageLabelText">1. WHAT IS YOUR AGE GROUP?</div>
+        <div class="age-grid" id="ageGrid"><button class="age-btn" data-age="12-17" onclick="selectAge(this)">12–17</button><button class="age-btn" data-age="18-24" onclick="selectAge(this)">18–24</button><button class="age-btn" data-age="25-34" onclick="selectAge(this)">25–34</button><button class="age-btn" data-age="35-44" onclick="selectAge(this)">35–44</button><button class="age-btn" data-age="45-55" onclick="selectAge(this)">45–55</button><button class="age-btn" data-age="55+" onclick="selectAge(this)">55+</button></div>
+      </div>
+      <div class="demo-field">
+        <div class="demo-label" id="fieldLabelText">2. WHAT IS YOUR FIELD OF WORK OR STUDY?</div>
+        <select class="demo-select" id="fieldSelect" onchange="checkDemoReady()"><option value="" id="fieldPlaceholder">— Select your field —</option></select>
+      </div>
+      <div class="demo-error" id="demoError">⚠ Please answer both questions to continue.</div>
+      <button class="demo-next-btn" id="demoNextBtn" onclick="submitDemo()">LET'S GO! →</button>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div class="game-screen" id="gameScreen">
+    <div class="header">
+      <div class="logo" id="logoText">AI MIRROR</div>
+      <div class="progress-area">
+        <div class="q-counter" id="qCounter">Q 1/20</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="score-pill">
+          <span id="scoreLabelText">SCORE</span>
+          <span class="score-val" id="scoreDisplay">0</span>
+        </div>
+        <button class="restart-btn" id="restartBtn" onclick="restart()">↩</button>
+      </div>
+    </div>
+
+    <div class="bot-area">
+      <div class="bot-character" id="botChar">
+        <svg viewBox="0 0 180 180" class="bot-svg">
+          <defs>
+            <radialGradient id="bodyGrad2" cx="50%" cy="40%" r="60%">
+              <stop offset="0%" stop-color="#1a3a5c"/>
+              <stop offset="100%" stop-color="#0a1a2e"/>
+            </radialGradient>
+            <filter id="glow2"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <line x1="90" y1="20" x2="90" y2="42" stroke="#00d4ff" stroke-width="3"/>
+          <circle cx="90" cy="15" r="7" fill="#00d4ff" filter="url(#glow2)"/>
+          <rect x="48" y="42" width="84" height="72" rx="18" fill="url(#bodyGrad2)" stroke="#00d4ff" stroke-width="2"/>
+          <circle cx="72" cy="72" r="12" fill="#0d1a2e" stroke="#00d4ff" stroke-width="1.5"/>
+          <circle cx="108" cy="72" r="12" fill="#0d1a2e" stroke="#00d4ff" stroke-width="1.5"/>
+          <circle cx="72" cy="72" r="7" fill="#00d4ff" id="eyeL"/>
+          <circle cx="108" cy="72" r="7" fill="#00d4ff" id="eyeR"/>
+          <circle cx="74" cy="70" r="3" fill="white"/>
+          <circle cx="110" cy="70" r="3" fill="white"/>
+          <path d="M 70 96 Q 90 108 110 96" stroke="#00d4ff" stroke-width="2.5" fill="none" stroke-linecap="round" id="botMouth"/>
+          <rect x="58" y="118" width="64" height="50" rx="12" fill="url(#bodyGrad2)" stroke="#00d4ff" stroke-width="2"/>
+          <circle cx="90" cy="143" r="12" fill="#0d1a2e" stroke="#7c3aed" stroke-width="1.5"/>
+          <circle cx="90" cy="143" r="7" fill="#7c3aed" opacity="0.8" id="chestLight"/>
+          <rect x="28" y="122" width="28" height="18" rx="9" fill="url(#bodyGrad2)" stroke="#00d4ff" stroke-width="1.5"/>
+          <rect x="124" y="122" width="28" height="18" rx="9" fill="url(#bodyGrad2)" stroke="#00d4ff" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="speech-bubble" id="speechBubble">
+        <div class="bot-name" id="botNameLabel">ALIX-7</div>
+        <div class="typing" id="typingIndicator">
+          <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+        </div>
+        <div class="question-text hidden" id="questionText"></div>
+      </div>
+    </div>
+
+    <div class="answers-area hidden" id="answersArea"></div>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div class="result-screen" id="resultScreen">
+    <div class="result-bot">
+      <svg viewBox="0 0 180 180" class="bot-svg">
+        <defs>
+          <radialGradient id="bodyGrad3" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="#1a3a5c"/>
+            <stop offset="100%" stop-color="#0a1a2e"/>
+          </radialGradient>
+          <filter id="glow3"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <line x1="90" y1="18" x2="90" y2="42" stroke="#f59e0b" stroke-width="3"/>
+        <circle cx="90" cy="12" r="9" fill="#f59e0b" filter="url(#glow3)"/>
+        <rect x="48" y="42" width="84" height="72" rx="18" fill="url(#bodyGrad3)" stroke="#f59e0b" stroke-width="2.5"/>
+        <circle cx="72" cy="70" r="13" fill="#0d1a2e" stroke="#f59e0b" stroke-width="2"/>
+        <circle cx="108" cy="70" r="13" fill="#0d1a2e" stroke="#f59e0b" stroke-width="2"/>
+        <circle cx="72" cy="70" r="8" fill="#f59e0b"/>
+        <circle cx="108" cy="70" r="8" fill="#f59e0b"/>
+        <circle cx="75" cy="68" r="3" fill="white"/>
+        <circle cx="111" cy="68" r="3" fill="white"/>
+        <!-- Big happy smile -->
+        <path d="M 65 95 Q 90 118 115 95" stroke="#f59e0b" stroke-width="3" fill="rgba(245,158,11,0.15)" stroke-linecap="round"/>
+        <rect x="58" y="118" width="64" height="50" rx="12" fill="url(#bodyGrad3)" stroke="#f59e0b" stroke-width="2"/>
+        <circle cx="90" cy="143" r="14" fill="#f59e0b" opacity="0.6" filter="url(#glow3)"/>
+        <rect x="26" y="120" width="30" height="22" rx="11" fill="url(#bodyGrad3)" stroke="#f59e0b" stroke-width="1.5"/>
+        <rect x="124" y="120" width="30" height="22" rx="11" fill="url(#bodyGrad3)" stroke="#f59e0b" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-score-circle">
+      <div class="result-score-num" id="resultScoreNum">0</div>
+      <div class="result-score-label" id="outOf">/100</div>
+    </div>
+    <div class="result-bar-wrap">
+      <div class="result-bar-label">
+        <span id="barLabel1">Independent</span>
+        <span id="barLabel2">Digital Native</span>
+      </div>
+      <div class="result-bar-track"><div class="result-bar-fill" id="resultBar" style="width:0%"></div></div>
+    </div>
+    <div id="userInfoBadge" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;"></div>
+    <div class="result-category" id="resultCategory"></div>
+    <div class="result-message" id="resultMessage"></div>
+
+    <div id="excelBtnWrap" style="display:none;width:100%;max-width:400px;">
+      <button onclick="downloadExcel()" style="width:100%;padding:14px;background:linear-gradient(135deg,#16a34a,#15803d);border:none;color:white;cursor:pointer;font-size:15px;font-family:'Orbitron',monospace;letter-spacing:2px;border-radius:10px;transition:all 0.3s;display:flex;align-items:center;justify-content:center;gap:10px;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+        <span id="excelBtnText">📊 DOWNLOAD EXCEL</span>
+      </button>
+    </div>
+
+    <button class="replay-btn" id="replayBtn" onclick="restart()">↺ PLAY AGAIN</button>
+  </div>
+
+</div>
+  <!-- ADMIN PANEL -->
+  <div id="adminPanel">
+    <div class="adm-inner">
+      <div class="adm-icon">🔐</div>
+      <div class="adm-title">ADMIN DASHBOARD</div>
+      <div class="adm-sub">AI MIRROR SURVEY — DATA CENTER</div>
+
+      <div class="adm-card">
+        <div class="adm-num" id="adminCount">0</div>
+        <div class="adm-lbl">Total Responses</div>
+      </div>
+
+      <button class="adm-dl-btn" onclick="adminDownloadExcel()">
+        <span>📊</span>
+        <span>DOWNLOAD ALL AS EXCEL</span>
+      </button>
+
+      <div class="adm-preview">
+        <div class="adm-preview-title">Latest 10 Responses</div>
+        <div class="adm-preview-list" id="adminPreview">
+          <div class="adm-empty">No responses yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+<script>
+// ==================== DATA ====================
+const QUESTIONS_EN = [
+  {
+    part: "PART 1 — YOUR DAILY LIFE",
+    q: "Be honest... how many times a day do you and AI 'chat' for work or study? 🤔",
+    reaction: "thinking",
+    emoji: "🤖",
+    options: [
+      {text:"A) We're practically strangers.", pts:1},
+      {text:"B) Just a quick chat now and then.", pts:2},
+      {text:"C) A solid work friendship.", pts:3},
+      {text:"D) We're basically partners.", pts:4},
+      {text:"E) AI is my co-pilot for EVERYTHING!", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "Pop quiz! Your teacher/boss just declared a 'No AI Day.' Your reaction? 😱",
+    reaction: "shocked",
+    emoji: "😱",
+    options: [
+      {text:"A) Easy peasy, business as usual.", pts:1},
+      {text:"B) A bit slower, but I'll manage.", pts:2},
+      {text:"C) Ugh, just STARTING the task will be the hardest part.", pts:4},
+      {text:"D) PANIC. How do I even...?", pts:5}
+    ]
+  },
+  {
+    part: "PART 2 — YOUR THINKING",
+    q: "Reading a long article online. How long until you're clicking on a different tab? 📱",
+    reaction: "thinking",
+    emoji: "🧠",
+    options: [
+      {text:"A) I'm a monk! Over 5 mins of pure focus.", pts:1},
+      {text:"B) A solid 3–5 minutes.", pts:2},
+      {text:"C) Maybe 1–3 minutes... squirrel! 🐿️", pts:4},
+      {text:"D) 1 minute? What was I reading?!", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "Ever open AI to do one thing, and 20 mins later you're learning about the history of spoons? 🥄",
+    reaction: "wow",
+    emoji: "😂",
+    options: [
+      {text:"A) Never, I'm a focused machine.", pts:1},
+      {text:"B) Only occasionally.", pts:2},
+      {text:"C) Happens a fair bit.", pts:3},
+      {text:"D) All. The. Time.", pts:4},
+      {text:"E) This question just reminded me of my original task...", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "Brainstorming time! Your first move? 💡",
+    reaction: "happy",
+    emoji: "💡",
+    options: [
+      {text:"A) My own brain is a creativity volcano. 🌋", pts:1},
+      {text:"B) Think a bit, then ask AI for a spark.", pts:2},
+      {text:"C) Open AI immediately, let's go!", pts:4},
+      {text:"D) My brain only works with AI now.", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "Do you ever feel like your brain is on vacation while AI does the heavy lifting? 🧳",
+    reaction: "sad",
+    emoji: "😴",
+    options: [
+      {text:"A) No way, my brain's in the best shape ever!", pts:1},
+      {text:"B) Maybe a tiny bit lazier? 😅", pts:2},
+      {text:"C) Yeah, my thinking feels a bit more... shallow.", pts:4},
+      {text:"D) Help! I can't deep-think without my digital lifeline!", pts:5}
+    ]
+  },
+  {
+    part: "PART 3 — YOUR FUTURE",
+    q: "AI: Friend or Foe? Which vibe do you feel more? 🌍",
+    reaction: "thinking",
+    emoji: "🌍",
+    options: [
+      {text:"A) Humanity's greatest invention! A new golden age! ✨", pts:1},
+      {text:"B) Powerful tool, but who knows what's next?", pts:2},
+      {text:"C) Kind of scary, like the start of a sci-fi movie. 🎬", pts:4},
+      {text:"D) It's the beginning of the end for us humans. 😨", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "Where should AI be completely LOCKED OUT? (Pick one battle) 🔒",
+    reaction: "shocked",
+    emoji: "⚠️",
+    options: [
+      {text:"A) Deciding life or death in wars.", pts:4},
+      {text:"B) Raising and caring for children.", pts:5},
+      {text:"C) Being the judge in court.", pts:3},
+      {text:"D) Creative fields: art, music, writing.", pts:2},
+      {text:"E) Nowhere — let AI try everything!", pts:1},
+      {text:"F) ALL of the above — keep AI out!", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "Picture this: AI-powered super-rich vs. everyone else. Scary future or just a movie plot? 🎬 (1=Movie plot → 5=My worst nightmare)",
+    reaction: "thinking",
+    emoji: "💸",
+    isSlider: true
+  },
+  {
+    part: null,
+    q: "Will we ever walk down a street and NOT know who's human and who's a robot? 🤖",
+    reaction: "wow",
+    emoji: "🤯",
+    options: [
+      {text:"A) No way, never!", pts:1},
+      {text:"B) Probably not.", pts:2},
+      {text:"C) Maybe in a sci-fi future.", pts:3},
+      {text:"D) Probably yes, in our lifetime.", pts:4},
+      {text:"E) It's already starting to happen...", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "Super-smart AI wakes up one day. Does it... help us, ignore us, or try to take over the world? 😈",
+    reaction: "shocked",
+    emoji: "🌐",
+    options: [
+      {text:"A) Help us! It's our creation. 🤝", pts:1},
+      {text:"B) Ignore us, like we ignore ants.", pts:3},
+      {text:"C) TAKE OVER! It's the logical next step. 👑", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "Will an AI bot be sitting in YOUR office chair in 10 years? 💼",
+    reaction: "sad",
+    emoji: "💼",
+    options: [
+      {text:"A) Never! My job needs a human.", pts:1},
+      {text:"B) Unlikely.", pts:2},
+      {text:"C) 50/50 chance.", pts:3},
+      {text:"D) Likely, yes.", pts:4},
+      {text:"E) I'm training my replacement right now... 😅", pts:5}
+    ]
+  },
+  {
+    part: "PART 4 — YOUR INNER WORLD",
+    q: "Your new boss is an AI bot. It decides your pay and promotions. Cool or creepy? 🤨",
+    reaction: "thinking",
+    emoji: "🤨",
+    options: [
+      {text:"A) Cool! Fair and logical. ✅", pts:1},
+      {text:"B) A little weird, but okay.", pts:2},
+      {text:"C) Not cool at all.", pts:4},
+      {text:"D) Creepy and terrifying! 😰", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "AI reads your MASTERPIECE report and says: 'Meh, it's weak.' You... 💔",
+    reaction: "sad",
+    emoji: "😤",
+    options: [
+      {text:"A) Laugh and ignore it. My work is great! 😂", pts:1},
+      {text:"B) Take the note, but trust myself most.", pts:2},
+      {text:"C) Feel a bit unsure and change a few things.", pts:4},
+      {text:"D) Assume it's right and rewrite everything. 😭", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "You ask AI about a hot topic. Its answer is super logical. You... 🧐",
+    reaction: "thinking",
+    emoji: "🧐",
+    options: [
+      {text:"A) Fact-check with other sources and my own brain.", pts:1},
+      {text:"B) Use it to organize thoughts, but keep looking.", pts:2},
+      {text:"C) Probably agree — it's so logical!", pts:4},
+      {text:"D) Adopt its opinion as my own starting point.", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "Would you be friends with a super-loyal, never-betrays-you AI robot? 🤖❤️",
+    reaction: "happy",
+    emoji: "🤖",
+    options: [
+      {text:"A) Sign me up! Best friend forever! 🤖", pts:5},
+      {text:"B) Sounds interesting, maybe.", pts:4},
+      {text:"C) Probably not, a bit weird.", pts:2},
+      {text:"D) Never! I need human friends. ❤️", pts:1}
+    ]
+  },
+  {
+    part: null,
+    q: "Your bestie sends a long, emotional message. You're swamped. Do you... 💌",
+    reaction: "sad",
+    emoji: "💌",
+    options: [
+      {text:"A) Drop everything and reply with love. 💖", pts:1},
+      {text:"B) Listen, then use AI to help write a thoughtful reply.", pts:2},
+      {text:"C) Ask AI to summarize it and draft a reply for me.", pts:4},
+      {text:"D) Send a quick 'Hang in there!'", pts:5},
+      {text:"E) Oops, I'll reply later... later never comes. 😬", pts:5}
+    ]
+  },
+  // Extra Q (non-scored, shown as bonus)
+  {
+    part: "⚡ BONUS ROUND",
+    q: "Final face-off! 🤼 A human expert and AI completely disagree on something. Who do you trust? (Not scored!)",
+    reaction: "wow",
+    emoji: "⚖️",
+    isBonus: true,
+    options: [
+      {text:"A) Team Human, no contest! 🙋", pts:0},
+      {text:"B) Leaning human, but let's see...", pts:0},
+      {text:"C) Depends — what's the topic? 🤔", pts:0},
+      {text:"D) AI's probably got this one.", pts:0},
+      {text:"E) All hail our AI overlords! 🤖👑", pts:0}
+    ]
+  },
+  // Open question (text) - shown but not scored
+  {
+    part: "✍️ OPEN REFLECTION",
+    q: "If AI had never been invented, what's one small thing in your daily life that would be different? What would you miss most, and what would you be secretly relieved to lose? (Just a sentence or two!)",
+    reaction: "thinking",
+    emoji: "✍️",
+    isOpen: true
+  }
+];
+
+const QUESTIONS_AR = [
+  {
+    part: "الجزء الأول — حياتك اليومية",
+    q: "قولي بصراحة... في اليوم الواحد بتتكلم مع الذكاء الاصطناعي قد إيه سواء في شغلك أو المذاكرة؟ 🤔",
+    reaction: "thinking",
+    emoji: "🤖",
+    options: [
+      {text:"أ) احنا تقريبًا غرباء 😅", pts:1},
+      {text:"ب) العلاقة بينا سلام من بعيد لبعيد", pts:2},
+      {text:"ج) احنا تقريبًا بقينا أصحاب خالص", pts:3},
+      {text:"د) تقدر تقول الـ AI شريك نجاحي 🤝", pts:4},
+      {text:"هـ) مش بمشي من غيره أصلاً!", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "تحدي مفاجئ! مديرك/أستاذك قرر إن النهاردة 'يوم من غير ذكاء اصطناعي'. ردة فعلك؟ 😱",
+    reaction: "shocked",
+    emoji: "😱",
+    options: [
+      {text:"أ) عادي جدًا، تمام التمام 💪", pts:1},
+      {text:"ب) هشتغل بس أبطأ شوية", pts:2},
+      {text:"ج) لا فكك مش هعرف... دي حتى البداية صعبة!", pts:4},
+      {text:"د) Panic Attack: إيه اللي بتقوله؟!", pts:5}
+    ]
+  },
+  {
+    part: "الجزء التاني — تفكيرك",
+    q: "بتقرأ مقال طويل أونلاين... قد إيه بتكمل قبل ما تلاقي نفسك بتفتح تاب تاني؟ 📱",
+    reaction: "thinking",
+    emoji: "🧠",
+    options: [
+      {text:"أ) أنا معنديش غيره الصبر! ممكن أكمل فوق الـ 5 دقائق بسهولة", pts:1},
+      {text:"ب) 3–5 دقائق، حلوين 😊", pts:2},
+      {text:"ج) يمكن 1–3 دقائق... بعدها بقلب سنجاب 🐿️ وأطلع أجري", pts:4},
+      {text:"د) دقيقة كاملة؟! بتهزر أكيد", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "بتفتح الذكاء الاصطناعي تعمل حاجة معينة، وبعد 20 دقيقة بتلاقي نفسك بتتعلم تاريخ الدب القطبي؟ 🐻‍❄️",
+    reaction: "wow",
+    emoji: "😂",
+    options: [
+      {text:"أ) مفيش الكالم ده، أنا آلة تركيز يباشا", pts:1},
+      {text:"ب) نادرًا", pts:2},
+      {text:"ج) شوف هو على حسب...", pts:3},
+      {text:"د) أومالا!! أنا بقيت شاطر في المعلومات العامة 😄", pts:4},
+      {text:"هـ) استنى! السؤال ده فكّرني أنا أصلاً كنت فاتح بعمل إيه؟!", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "عايزينك تعصف ذهنيًا معانا يا boss! أي رأيك؟ 💡",
+    reaction: "happy",
+    emoji: "💡",
+    options: [
+      {text:"أ) بركان إبداع يباشا! 🌋", pts:1},
+      {text:"ب) يعني... ممكن أفكر شوية، بعدين أطلب من AI يديني الشرارة", pts:2},
+      {text:"ج) أنا فاتح الـ AI أصلاً اهو، يالا بينا!", pts:4},
+      {text:"د) يعني أي أصلاً؟؟", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "معلش استحمل معانا شوية... عمرك حسيت إن مخك بقى في إجازة وإن الـ AI هو اللي بيشتغل؟ 🏖️",
+    reaction: "sad",
+    emoji: "😴",
+    options: [
+      {text:"أ) مفيش منه الكلام ده، أنا مخي في أحسن حالاته!", pts:1},
+      {text:"ب) يعني... يمكن كسلان شوية 😅", pts:2},
+      {text:"ج) ايوه فعلاً، حتى التفكير صعّبوه علينا 😔", pts:4},
+      {text:"د) أنت ازاي هكرتني كده؟! مين انتوا وعايزين إيه؟!", pts:5}
+    ]
+  },
+  {
+    part: "الجزء التالت — مستقبلك",
+    q: "قولي من الآخر: شايف الـ AI صديق ولا عدو؟ 🌍",
+    reaction: "thinking",
+    emoji: "🌍",
+    options: [
+      {text:"أ) يباشا أعظم اختراع في تاريخ البشرية! ✨", pts:1},
+      {text:"ب) بصراحة فوق التقييم، لكن مين عارف مش يمكن بكره هو اللي يقيّمنا؟ 😏", pts:2},
+      {text:"ج) مقلق منه بصراحة، إحنا داخلين على فلم Blade Runner سيكا 🎬", pts:4},
+      {text:"د) يسطا أنا بقولك بداية النهاية 😨", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "عم الناس... برأيك أي المجال اللي لازم نمنع الـ AI عنه تمامًا؟ (اختار واحد) 🔒",
+    reaction: "shocked",
+    emoji: "⚠️",
+    options: [
+      {text:"أ) أي قرارات مرتبطة بالحرب والسلاح والدبلوماسية", pts:4},
+      {text:"ب) تربية عيالي وتعليمهم القيم الدينية والعادات الاجتماعية", pts:5},
+      {text:"ج) إصدار الأحكام النهائية في القضايا", pts:3},
+      {text:"د) كله حلو يباشا جرّبوه... أنا مالي!", pts:1},
+      {text:"هـ) مينفعش في ولا حاجة من دول أصلاً!", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "تعال تخيل معايا: الأغنياء هما اللي عندهم access على الـ AI والباقي لا... مستقبل مرعب ولا عادي؟ 💸 (1=عادي → 5=أفلام الرعب دي)",
+    reaction: "thinking",
+    emoji: "💸",
+    isSlider: true
+  },
+  {
+    part: null,
+    q: "هل شايف إن ممكن يجي اليوم اللي نمشي فيه في الشارع وما نعرفش نميز مين إنسان ومين روبوت؟ 🤖",
+    reaction: "wow",
+    emoji: "🤯",
+    options: [
+      {text:"أ) أي يعم الكلام ده! أنت أفلام الخيال العلمي أكلت دماغك", pts:1},
+      {text:"ب) صعبة أوي دي", pts:2},
+      {text:"ج) كل شيء وارد... يمكن في المستقبل البعيد", pts:3},
+      {text:"د) غالبًا آه، ويمكن يحصل على حياة عيننا كمان", pts:4},
+      {text:"هـ) واشوف ليه؟ احنا بدأنا أصلاً... أنت مش متابع؟!", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "لو الـ AI بقى أذكى مننا وفي إيده القرار... تفتكر هيعمل إيه؟ 😈",
+    reaction: "shocked",
+    emoji: "🌐",
+    options: [
+      {text:"أ) حيساعدنا طبعًا! ده إحنا اللي عملناه... حد برضو بيعض الإيد اللي اتمدتله؟! 🤝", pts:1},
+      {text:"ب) وأي حاجة هيتجاهلنا... الراجل مش هيبقى فاضي للكلام الفارغ ده", pts:3},
+      {text:"ج) هيسيطر على العالم! قولتلك صح بس بتحب ترغي كتير 😱", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "طب سيبك من الخيال العلمي وقولي بصراحة... روبوت ممكن هياخد كرسيك في الشغل خلال 10 سنين؟ 💼",
+    reaction: "sad",
+    emoji: "💼",
+    options: [
+      {text:"أ) مستحيل، شغلي مينفعش معاه غير إنسان دم ولحم!", pts:1},
+      {text:"ب) صعب", pts:2},
+      {text:"ج) يعني 50/50", pts:3},
+      {text:"د) وارد جدًا", pts:4},
+      {text:"هـ) هه يباشا أنا قاعد بدرّب بديلي دلوقتي 😅", pts:5}
+    ]
+  },
+  {
+    part: "الجزء الرابع — كيانك الذاتي",
+    q: "سامعك يا اللي بتقول زهقت... خالص! لو روحت الشغل يوم ولقيت مديرك الجديد روبوت بيقيّمك ويقرر مرتبك وترقيتك. هتسلم عليه وإلا أي الكلام؟ 🤨",
+    reaction: "thinking",
+    emoji: "🤨",
+    options: [
+      {text:"أ) فيها أي يعني! اهو على الأقل نضمن يكون عادل ومش متحيز ✅", pts:1},
+      {text:"ب) غريبة شوية دي، بس ماشي", pts:2},
+      {text:"ج) لا طبعًا مش موافق أي ده؟", pts:4},
+      {text:"د) دي حاجة مرعبة... إحنا حنهزر! 😰", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "سؤال كمان ما يجراش حاجة... الـ AI قرأ التقرير العبقري اللي فخامتك عملته ثم تنهد وقال: 'أي القرف ده'. إيه ردة فعلك؟ 💔",
+    reaction: "sad",
+    emoji: "😤",
+    options: [
+      {text:"أ) هاخد الموضوع بهزار وأكبر دماغي منه. أنا شغلي فوق التقييم! 😂", pts:1},
+      {text:"ب) هعتبرها وجهة نظر تحترم، بس أنا مش روبوت اللي يهزني يا معلم", pts:2},
+      {text:"ج) ممكن أغير حاجات بسيطة ما هو أكيد عنده وجهة نظر برضو", pts:4},
+      {text:"د) هضطر أمسح وأعيد كل حاجة من الأول... هو أكيد شايف اللي أنا مش شايفه 😭", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "استحملت كل ده... لو انت وزميلك اتجادلتم في موضوع صعب وروحت سألت الـ AI وإجابته كانت منطقية جدًا. إيه الخطوة الجاية؟ 🧐",
+    reaction: "thinking",
+    emoji: "🧐",
+    options: [
+      {text:"أ) هتأكد من مصادر تانية وهعدي الكلام على عقلي برضو", pts:1},
+      {text:"ب) ممكن أستخدمه عشان أنظم أفكاري، لكن برضو هدور أكتر", pts:2},
+      {text:"ج) طب ما انت قولت رده كان منطقي جدًا يبقى خالص هو ده لزمته أي وجع القلب؟! 🤷", pts:4},
+      {text:"د) هعتمد كلامه طبعًا وهبني رأيي بناء عليه", pts:5}
+    ]
+  },
+  {
+    part: null,
+    q: "خالص يعم ميبقاش خلقك ضيق... لو تقدر تخلي الـ best friend بتاعك روبوت AI وفي جدًا ومش ممكن يخونك أبدًا، هتعمل ده؟ 🤖❤️",
+    reaction: "happy",
+    emoji: "🤖",
+    options: [
+      {text:"أ) صاحبي يا صاحبي أنت اللي لوحدك شبهي! 🤖", pts:5},
+      {text:"ب) ممكن، الواحد مفكرش فيها قبل كده", pts:4},
+      {text:"ج) غالبًا لا، الموضوع ممكن يخرج عن السيطرة", pts:2},
+      {text:"د) لا طبعًاا! مفيش حد يقدر ياخد مكان الإنسان في حياة أخوه الإنسان ❤️", pts:1}
+    ]
+  },
+  {
+    part: null,
+    q: "خدت بالي إنك صاحب جدع... البست فرند بعتلك رسالة طويلة وحزينة. للأسف ساعتها أنت كنت مشغول جدًا. هتعمل معاه إيه؟ 💌",
+    reaction: "sad",
+    emoji: "💌",
+    options: [
+      {text:"أ) هسيب كل حاجة في إيدي وأرد... هو الصاحب ليه عند صاحبه أي 💖", pts:1},
+      {text:"ب) ههتم أسمعها للآخر، وممكن أستخدم الـ AI عشان أنظم رد على السريع", pts:2},
+      {text:"ج) هطلب من AI يلخصهالي بسرعة ويساعدني أكتب رد... مش وقت فضفضة", pts:4},
+      {text:"د) هبعتله رد سريع كده على الماشي", pts:5},
+      {text:"هـ) دراما كوين أوي... أنا فاضي للكلام ده!!", pts:5}
+    ]
+  },
+  // Bonus Q
+  {
+    part: "⚡ بونص",
+    q: "صراع القرن! 🤼 خبير بشري وذكاء اصطناعي اختلفوا على حاجة... أنت مع مين؟ (مش بيتحسب في الدرجة)",
+    reaction: "wow",
+    emoji: "⚖️",
+    isBonus: true,
+    options: [
+      {text:"أ) مع الإنسان طبعًا، بلا منازع! 🙋", pts:0},
+      {text:"ب) هميل للإنسان أكيد، بس على حسب برضو", pts:0},
+      {text:"ج) على حسب الموضوع بصراحة 🤔", pts:0},
+      {text:"د) الـ AI غالبًا صح", pts:0},
+      {text:"هـ) AI كده كده! 🤖👑", pts:0}
+    ]
+  },
+  // Open Q
+  {
+    part: "✍️ سؤال مفتوح",
+    q: "لو مكانش الإنسان اخترع الذكاء الاصطناعي، إيه التفاصيل الصغيرة في يومك اللي كانت هتختلف؟ إيه أكتر حاجة كنت هتفتقدها في وجوده؟ وإيه الحاجة اللي كنت هتكون مرتاح إنك أخيرًا عايش من غيرها؟",
+    reaction: "thinking",
+    emoji: "✍️",
+    isOpen: true
+  }
+];
+
+const RESULTS_EN = [
+  { min:0, max:40, title:"THE INDEPENDENT HUMAN 🧠", msg:"You see AI as a tool, not a crutch. Your human skills are sharp, your mind is active, and you're steering the wheel. AI exists in your world, but YOU are in control. Keep that independent spirit!" },
+  { min:41, max:65, title:"THE BALANCED USER ⚖️", msg:"You're riding the AI wave perfectly — using it to boost your life without losing yourself. You know when to lean on technology and when to trust your own amazing brain. This is the sweet spot!" },
+  { min:66, max:85, title:"THE AI EXPLORER 🚀", msg:"You're diving deep into the AI world! It's exciting, and you're getting a lot out of it. Just remember to come up for air and trust your own incredible brain. Don't let the algorithm outshine the human behind the screen." },
+  { min:86, max:100, title:"THE DIGITAL NATIVE 🤖", msg:"AI is in your DNA! The line between you and your digital assistant is getting blurry. You're super productive — but it might be time for a digital detox? Try one task this week with just your beautiful human brain. You might surprise yourself!" }
+];
+
+const RESULTS_AR = [
+  { min:0, max:40, title:"إنسان أصيل وراجل جدع 👊", msg:"بتستخدم الـ AI كمجرد أداة مش عكاز. عقلك البشري لسه شغال وأنت اللي بتحكم في كل حاجة. استمر كده يباشا!" },
+  { min:41, max:65, title:"متوازن... لسه أنت اللي مسيطر 😉", msg:"جامد... بتستخدم الـ AI بذكاء! راكب الموجة من غير ما تغرق. مين قدك يا سيدي؟" },
+  { min:66, max:85, title:"هسميك... مستكشف الرقمنة! 🙂", msg:"أنت غطسان في عالم الـ AI! بس اوعى تنسى تطلع تتنفس هواء شوية وتثق في عقلك البشري العبقري برضو." },
+  { min:86, max:100, title:"وأدي يباشا أحلى كارنيه عضوية للمواطن الرقمي 🤖", msg:"الـ AI بقى في دماغك وفي دمك! أنت عجبك حالك؟ تيل مي أنت عجبك حالك؟؟ طب فكرت تعمل ديجيتال ديتوكس؟ 😄" }
+];
+
+// ==================== FIELDS DATA ====================
+const FIELDS_EN = [
+  "Technology / IT / Programming / Computer Science",
+  "Engineering",
+  "Medicine / Healthcare",
+  "Education / Academia",
+  "Arts / Media / Design",
+  "Business / Management / Marketing",
+  "Law / Legal",
+  "Services / Sales / Retail",
+  "Student",
+  "Homemaker",
+  "Retired",
+  "Freelancer / Self-employed",
+  "Currently unemployed",
+  "Other"
+];
+const FIELDS_AR = [
+  "تقنية المعلومات / برمجة / علوم حاسب",
+  "هندسة",
+  "طب / رعاية صحية",
+  "تعليم / أكاديميا",
+  "فنون / إعلام / تصميم",
+  "أعمال / إدارة / تسويق",
+  "قانون / محاماة",
+  "خدمات / مبيعات / تجزئة",
+  "طالب/ة",
+  "ربة منزل",
+  "متقاعد/ة",
+  "عمل حر / مستقل",
+  "عاطل/ة عن العمل حالياً",
+  "أخرى"
+];
+
+// ==================== STATE ====================
+let lang = "en";
+let currentQ = 0;
+let totalScore = 0;
+let questions = [];
+let answered = false;
+let openAnswer = "";
+let allAnswers = [];  // stores every answer {qIndex, question, answer, pts}
+let userAge = "";
+let userField = "";
+
+// ==================== INIT ====================
+function startGame(l) {
+  lang = l;
+  questions = l === "ar" ? QUESTIONS_AR : QUESTIONS_EN;
+  document.documentElement.lang = l;
+  document.body.className = l === "ar" ? "ar" : "";
+  document.getElementById("langScreen").style.display = "none";
+  showDemoScreen();
+}
+
+function showDemoScreen() {
+  const ds = document.getElementById("demoScreen");
+  ds.classList.add("active");
+  userAge = ""; userField = "";
+  document.querySelectorAll(".age-btn").forEach(b => b.classList.remove("selected"));
+  document.getElementById("fieldSelect").value = "";
+  document.getElementById("demoNextBtn").classList.remove("ready");
+
+  if(lang === "ar") {
+    document.getElementById("demoTitle").textContent = "قبل ما نبدأ...";
+    document.getElementById("demoSubtitle").textContent = "عرّفنا بنفسك شوية 👤";
+    document.getElementById("ageLabelText").textContent = "١. ما هي فئتك العمرية؟";
+    document.getElementById("fieldLabelText").textContent = "٢. ما هو مجال دراستك أو عملك؟";
+    document.getElementById("demoNextBtn").textContent = "يالا نبدأ! ←";
+    document.getElementById("demoError").textContent = "⚠ من فضلك اختر العمر والتخصص عشان تكمل.";
+  } else {
+    document.getElementById("demoTitle").textContent = "BEFORE WE BEGIN...";
+    document.getElementById("demoSubtitle").textContent = "Tell us a little about yourself 👤";
+    document.getElementById("ageLabelText").textContent = "1. WHAT IS YOUR AGE GROUP?";
+    document.getElementById("fieldLabelText").textContent = "2. WHAT IS YOUR FIELD OF WORK OR STUDY?";
+    document.getElementById("demoNextBtn").textContent = "LET'S GO! →";
+    document.getElementById("demoError").textContent = "⚠ Please answer both questions to continue.";
+  }
+
+  const sel = document.getElementById("fieldSelect");
+  sel.innerHTML = "<option value=''>" + (lang==="ar" ? "— اختر مجالك —" : "— Select your field —") + "</option>";
+  const fields = lang === "ar" ? FIELDS_AR : FIELDS_EN;
+  fields.forEach(f => {
+    const opt = document.createElement("option");
+    opt.value = f; opt.textContent = f;
+    sel.appendChild(opt);
+  });
+}
+
+function selectAge(btn) {
+  document.querySelectorAll(".age-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  userAge = btn.dataset.age;
+  checkDemoReady();
+}
+
+function checkDemoReady() {
+  userField = document.getElementById("fieldSelect").value;
+  const ready = userAge !== "" && userField !== "";
+  document.getElementById("demoNextBtn").classList.toggle("ready", ready);
+}
+
+function submitDemo() {
+  userField = document.getElementById("fieldSelect").value;
+  if(!userAge || !userField) {
+    document.getElementById("demoError").style.display = "block";
+    return;
+  }
+  document.getElementById("demoError").style.display = "none";
+  document.getElementById("demoScreen").classList.remove("active");
+  if(lang === "ar") {
+    document.getElementById("logoText").textContent = "مرآة الذكاء الاصطناعي";
+    document.getElementById("botNameLabel").textContent = "أليكس-7";
+    document.getElementById("scoreLabelText").textContent = "النقاط";
+  }
+  document.getElementById("gameScreen").classList.add("active");
+  currentQ = 0; totalScore = 0; allAnswers = [];
+  showQuestion();
+}
+
+function restart() {
+  currentQ = 0; totalScore = 0; answered = false; openAnswer = "";
+  userAge = ""; userField = "";
+  document.getElementById("resultScreen").classList.remove("active");
+  document.getElementById("resultScreen").style.display = "";
+  document.getElementById("gameScreen").classList.remove("active");
+  document.getElementById("demoScreen").classList.remove("active");
+  document.getElementById("langScreen").style.display = "flex";
+  document.body.className = "";
+  document.documentElement.lang = "en";
+}
+
+// ==================== QUESTION DISPLAY ====================
+function showQuestion() {
+  if(currentQ >= questions.length) { showResult(); return; }
+  const q = questions[currentQ];
+  
+  // Update progress
+  const progress = (currentQ / questions.length) * 100;
+  document.getElementById('progressFill').style.width = progress + '%';
+  document.getElementById('qCounter').textContent = lang === 'ar' 
+    ? `سؤال ${currentQ+1}/${questions.length}` 
+    : `Q ${currentQ+1}/${questions.length}`;
+  document.getElementById('scoreDisplay').textContent = totalScore;
+  
+  // Bot reaction
+  triggerBotReaction(q.reaction || 'thinking', q.emoji);
+  
+  // Show typing first
+  const bubble = document.getElementById('speechBubble');
+  const typingEl = document.getElementById('typingIndicator');
+  const qText = document.getElementById('questionText');
+  const answersArea = document.getElementById('answersArea');
+  
+  typingEl.classList.remove('hidden');
+  qText.classList.add('hidden');
+  answersArea.classList.add('hidden');
+  answersArea.innerHTML = '';
+  
+  // Remove old reaction emoji
+  const oldEmoji = bubble.querySelector('.reaction-emoji');
+  if(oldEmoji) oldEmoji.remove();
+  
+  setTimeout(() => {
+    typingEl.classList.add('hidden');
+    
+    // Part label
+    let html = '';
+    if(q.part) html += `<div class="part-label">${q.part}</div>`;
+    html += `<div>${q.q}</div>`;
+    qText.innerHTML = html;
+    qText.classList.remove('hidden');
+    
+    // Emoji pop
+    const emojiEl = document.createElement('div');
+    emojiEl.className = 'reaction-emoji';
+    emojiEl.textContent = q.emoji || '🤖';
+    bubble.appendChild(emojiEl);
+    
+    // Answers
+    setTimeout(() => {
+      answersArea.classList.remove('hidden');
+      answered = false;
+      
+      if(q.isOpen) {
+        const div = document.createElement('div');
+        div.className = 'open-q-area';
+        div.innerHTML = `
+          <textarea class="open-textarea" id="openTextarea" placeholder="${lang === 'ar' ? 'اكتب إجابتك هنا...' : 'Type your answer here...'}"></textarea>
+          <button class="submit-btn" onclick="submitOpen()">${lang === 'ar' ? 'تخطي / إرسال ←' : 'Submit / Skip →'}</button>
+        `;
+        answersArea.appendChild(div);
+      } else if(q.isSlider) {
+        const div = document.createElement('div');
+        div.className = 'open-q-area';
+        div.innerHTML = `
+          <div style="padding:20px 0">
+            <input type="range" id="sliderVal" min="1" max="5" value="3" style="width:100%;accent-color:var(--accent);cursor:pointer" oninput="updateSlider(this.value)">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-top:8px">
+              <span>${lang==='ar'?'مش مقلق':'Not worried'}</span>
+              <span id="sliderDisplay" style="color:var(--accent);font-size:20px;font-family:'Orbitron',monospace">3</span>
+              <span>${lang==='ar'?'مقلق جداً':'Very worried'}</span>
+            </div>
+          </div>
+          <button class="submit-btn" onclick="submitSlider()">${lang==='ar'?'التالي ←':'Next →'}</button>
+        `;
+        answersArea.appendChild(div);
+      } else {
+        const letters = ['A','B','C','D','E','F'];
+        const arLetters = ['أ','ب','ج','د','هـ','و'];
+        q.options.forEach((opt, i) => {
+          const btn = document.createElement('button');
+          btn.className = 'answer-btn';
+          const letter = lang === 'ar' ? arLetters[i] : letters[i];
+          // Remove the letter prefix from text since it's already there in the option text
+          const displayText = opt.text;
+          btn.innerHTML = `<span>${displayText}</span>`;
+          btn.style.animationDelay = (i * 0.07) + 's';
+          btn.onclick = () => selectAnswer(btn, opt.pts, q.isBonus);
+          answersArea.appendChild(btn);
+        });
+      }
+    }, 100);
+  }, 900 + Math.random() * 400);
+}
+
+function updateSlider(val) {
+  document.getElementById('sliderDisplay').textContent = val;
+}
+
+function submitSlider() {
+  const val = parseInt(document.getElementById('sliderVal').value);
+  totalScore += val;
+  const qData = questions[currentQ];
+  allAnswers.push({
+    qIndex: currentQ + 1,
+    part: qData.part || '',
+    question: qData.q,
+    answer: String(val),
+    pts: val
+  });
+  nextQuestion();
+}
+
+function submitOpen() {
+  const ta = document.getElementById('openTextarea');
+  openAnswer = ta ? ta.value : '';
+  const qData = questions[currentQ];
+  allAnswers.push({
+    qIndex: currentQ + 1,
+    part: qData.part || '',
+    question: qData.q,
+    answer: openAnswer,
+    pts: 'open'
+  });
+  nextQuestion();
+}
+
+function selectAnswer(btn, pts, isBonus) {
+  if(answered) return;
+  answered = true;
+  
+  // Highlight selected
+  document.querySelectorAll('.answer-btn').forEach(b => b.style.opacity = '0.5');
+  btn.style.opacity = '1';
+  btn.style.borderColor = 'var(--accent)';
+  btn.style.background = 'rgba(0,212,255,0.1)';
+  
+  if(!isBonus) totalScore += pts;
+  
+  // Track answer
+  const qData = questions[currentQ];
+  allAnswers.push({
+    qIndex: currentQ + 1,
+    part: qData.part || '',
+    question: qData.q,
+    answer: btn.querySelector('span') ? btn.querySelector('span').textContent : '',
+    pts: isBonus ? 'bonus' : pts
+  });
+
+  // Bot reaction based on score
+  if(pts >= 4) triggerBotReaction('sad', pts >= 5 ? '😟' : '😬');
+  else if(pts <= 1) triggerBotReaction('happy', '😄');
+  
+  setTimeout(nextQuestion, 700);
+}
+
+function nextQuestion() {
+  currentQ++;
+  showQuestion();
+}
+
+// ==================== BOT REACTIONS ====================
+function triggerBotReaction(type, emoji) {
+  const bot = document.getElementById('botChar');
+  bot.className = 'bot-character reaction-' + type;
+  
+  // Change eye colors based on reaction
+  const eyeL = document.getElementById('eyeL');
+  const eyeR = document.getElementById('eyeR');
+  const chest = document.getElementById('chestLight');
+  const mouth = document.getElementById('botMouth');
+  
+  const colors = {
+    happy:   { eye:'#00ff88', chest:'#00ff88', mouth:'M 65 94 Q 90 115 115 94' },
+    sad:     { eye:'#ff6b6b', chest:'#ff6b6b', mouth:'M 70 104 Q 90 92 110 104' },
+    shocked: { eye:'#f59e0b', chest:'#f59e0b', mouth:'M 80 97 Q 90 103 100 97' },
+    thinking:{ eye:'#00d4ff', chest:'#7c3aed', mouth:'M 72 98 Q 90 104 108 98' },
+    wow:     { eye:'#ff00ff', chest:'#ff00ff', mouth:'M 65 92 Q 90 118 115 92' }
+  };
+  
+  const c = colors[type] || colors.thinking;
+  if(eyeL) eyeL.setAttribute('fill', c.eye);
+  if(eyeR) eyeR.setAttribute('fill', c.eye);
+  if(chest) chest.setAttribute('fill', c.chest);
+  if(mouth) mouth.setAttribute('d', c.mouth);
+  
+  // Reset animation class
+  setTimeout(() => {
+    bot.className = 'bot-character';
+    bot.style.animation = 'botBob 3s ease-in-out infinite';
+  }, 800);
+}
+
+// ==================== RESULTS ====================
+function showResult() {
+  document.getElementById('gameScreen').classList.remove('active');
+  const rs = document.getElementById('resultScreen');
+  rs.style.display = 'flex';
+  rs.classList.add('active');
+  
+  const maxPossible = 85; // approximate max for scored questions
+  const normalizedScore = Math.min(100, Math.round((totalScore / maxPossible) * 100));
+  
+  const results = lang === 'ar' ? RESULTS_AR : RESULTS_EN;
+  const result = results.find(r => normalizedScore >= r.min && normalizedScore <= r.max) || results[results.length-1];
+  
+  document.getElementById('resultTitle').textContent = result.title;
+  document.getElementById('resultMessage').textContent = result.msg;
+  document.getElementById('resultCategory').textContent = result.title;
+  
+  if(lang === 'ar') {
+    document.getElementById('replayBtn').textContent = '↺ إلعب تاني';
+    document.getElementById('barLabel1').textContent = 'إنسان أصيل';
+    document.getElementById('barLabel2').textContent = 'مواطن رقمي';
+    document.getElementById('outOf').textContent = '/100';
+  }
+  
+  // Show user info badge
+  const badge = document.getElementById('userInfoBadge');
+  const ageLabel = lang === 'ar' ? 'العمر' : 'AGE';
+  const fieldLabel = lang === 'ar' ? 'التخصص' : 'FIELD';
+  badge.innerHTML = `
+    <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:20px;padding:8px 18px;font-size:12px;color:var(--text-dim);">
+      <span style="color:var(--accent);letter-spacing:1px;">${ageLabel}:</span> <span style="color:var(--text)">${userAge}</span>
+    </div>
+    <div style="background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.25);border-radius:20px;padding:8px 18px;font-size:12px;color:var(--text-dim);max-width:280px;text-align:center">
+      <span style="color:var(--accent2);letter-spacing:1px;">${fieldLabel}:</span> <span style="color:var(--text)">${userField}</span>
+    </div>
+  `;
+
+  // Animate score count up
+  let displayed = 0;
+  const target = normalizedScore;
+  const step = Math.ceil(target / 60);
+  const interval = setInterval(() => {
+    displayed = Math.min(displayed + step, target);
+    document.getElementById('resultScoreNum').textContent = displayed;
+    if(displayed >= target) clearInterval(interval);
+  }, 25);
+  
+  // Animate bar
+  setTimeout(() => {
+    document.getElementById('resultBar').style.width = normalizedScore + '%';
+  }, 200);
+  
+  // Confetti for high scores
+  if(normalizedScore >= 70) launchConfetti();
+
+  // Save response
+  saveResponse(normalizedScore, result.title);
+}
+
+// ==================== SAVE RESPONSE ====================
+async function buildResponseDoc(score, category) {
+  const maxPossible = 85;
+  // Map answers by question index (1-based)
+  const ans = {};
+  allAnswers.forEach(a => { ans[a.qIndex] = a.answer; });
+
+  return {
+    timestamp:        new Date().toISOString(),
+    language:         lang,
+    age:              userAge,
+    field:            userField,
+    q4_ai_usage:      ans[1]  || '',
+    q5_dependency:    ans[2]  || '',
+    q6_focus:         ans[3]  || '',
+    q7_fragmentation: ans[4]  || '',
+    q8_creativity:    ans[5]  || '',
+    q9_cognition:     ans[6]  || '',
+    q10_view:         ans[7]  || '',
+    q11_limits:       ans[8]  || '',
+    q12_inequality:   parseInt(ans[9])  || 0,
+    q13_future_city:  ans[10] || '',
+    q14_rebellion:    ans[11] || '',
+    q15_job:          ans[12] || '',
+    q16_ai_boss:      ans[13] || '',
+    q17_confidence:   ans[14] || '',
+    q18_independence: ans[15] || '',
+    q19_ai_friend:    ans[16] || '',
+    q20_empathy:      ans[17] || '',
+    q21_bonus:        ans[18] || '',
+    open_answer:      openAnswer,
+    total_raw_score:  totalScore,
+    score_out_of_100: score,
+    result_category:  category
+  };
+}
+
+async function saveResponse(score, category) {
+  const doc = await buildResponseDoc(score, category);
+
+  // Save to MongoDB (silent if offline)
+  try {
+    await fetch('http://localhost:3000/api/response', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(doc)
+    });
+  } catch (e) {}
+
+  // Always save to localStorage
+  saveToLocalStorage(doc);
+
+  // Show Excel button ONLY if admin token is in URL
+  if (isAdminSession()) showExcelButton();
+}
+
+// ==================== ADMIN TOKEN ====================
+// ⚠️  Change this to your own secret value!
+const ADMIN_TOKEN = 'SURVEY2025';
+
+function isAdminSession() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('token') === ADMIN_TOKEN;
+}
+
+// Called once on page load — if admin token in URL, skip survey and show admin panel
+function checkAdminOnLoad() {
+  if (!isAdminSession()) return;
+
+  // Hide everything, show admin panel
+  document.getElementById('langScreen').style.display    = 'none';
+  document.getElementById('gameScreen').style.display    = 'none';
+  document.getElementById('resultScreen').style.display  = 'none';
+  document.querySelector('.bg-grid').style.display       = 'none';
+
+  const panel = document.getElementById('adminPanel');
+  if (panel) {
+    panel.style.display = 'flex';
+    refreshAdminPanel();
+  }
+}
+
+function refreshAdminPanel() {
+  const all = getAllResponses();
+  const countEl = document.getElementById('adminCount');
+  if (countEl) countEl.textContent = all.length;
+
+  // Show last 5 entries preview
+  const preview = document.getElementById('adminPreview');
+  if (!preview) return;
+  if (all.length === 0) {
+    preview.innerHTML = '<div class="adm-empty">No responses yet.</div>';
+    return;
+  }
+  const last10 = all.slice(-10).reverse();
+  preview.innerHTML = last10.map((r, i) => `
+    <div class="adm-row">
+      <span style="color:var(--accent);">#${all.length - i}</span>
+      &nbsp;·&nbsp; <span style="color:var(--text-dim);">Age:</span> <span style="color:var(--text)">${r.age || '—'}</span>
+      &nbsp;·&nbsp; <span style="color:var(--text-dim);">Field:</span> <span style="color:var(--text)">${(r.field||'—').split('/')[0].trim()}</span>
+      &nbsp;·&nbsp; <span style="color:var(--text-dim);">Score:</span> <span style="color:var(--accent3)">${r.score_out_of_100}/100</span>
+      &nbsp;·&nbsp; <span style="color:var(--text-dim);">Lang:</span> <span style="color:var(--text)">${r.language||'—'}</span>
+      &nbsp;·&nbsp; <span style="color:var(--text-dim)">${new Date(r.timestamp).toLocaleDateString()}</span>
+    </div>
+  `).join('');
+}
+
+// ── LocalStorage helpers ──────────────────────────────────────
+const STORAGE_KEY = 'ai_survey_all_responses';
+
+function saveToLocalStorage(doc) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    existing.push(doc);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+    return existing.length;
+  } catch(e) { return 0; }
+}
+
+function getAllResponses() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch(e) { return []; }
+}
+
+function showExcelButton() {
+  const total = getAllResponses().length;
+  const el    = document.getElementById('excelBtnWrap');
+  if (!el) return;
+  el.style.display = 'block';
+  const label = document.getElementById('excelBtnText');
+  if (label) {
+    label.textContent = lang === 'ar'
+      ? `📊 تنزيل Excel — ${total} ${total === 1 ? 'استجابة' : 'استجابات'}`
+      : `📊 DOWNLOAD EXCEL — ${total} ${total === 1 ? 'response' : 'responses'}`;
+  }
+}
+
+function downloadExcel() {
+  if (!isAdminSession()) return;
+  const allDocs = getAllResponses();
+  if (allDocs.length === 0) return;
+
+  const headers = Object.keys(allDocs[0]);
+  const rows    = allDocs.map(doc => headers.map(h => doc[h] !== undefined ? doc[h] : ''));
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 22) }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'All Responses');
+
+  const ts = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `AI_Survey_${allDocs.length}_responses_${ts}.xlsx`);
+}
+
+
+function adminDownloadExcel() {
+  const all = getAllResponses();
+  if (all.length === 0) return;
+
+  const headers = Object.keys(all[0]);
+  const rows    = all.map(doc => headers.map(h => doc[h] !== undefined ? doc[h] : ''));
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 22) }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'All Responses');
+
+  const ts = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `AI_Survey_${all.length}_responses_${ts}.xlsx`);
+}
+// ==================== CONFETTI ====================
+function launchConfetti() {
+  const wrap = document.getElementById('confetti');
+  wrap.innerHTML = '';
+  const colors = ['#00d4ff','#7c3aed','#f59e0b','#ff6b6b','#00ff88'];
+  for(let i = 0; i < 60; i++) {
+    const el = document.createElement('div');
+    el.className = 'conf';
+    el.style.cssText = `
+      left:${Math.random()*100}%;
+      top:${Math.random()*30}%;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      width:${4+Math.random()*8}px;
+      height:${4+Math.random()*8}px;
+      border-radius:${Math.random()>0.5?'50%':'2px'};
+      animation-delay:${Math.random()*1}s;
+      animation-duration:${1+Math.random()*1}s;
+    `;
+    wrap.appendChild(el);
+  }
+  setTimeout(() => wrap.innerHTML = '', 3000);
+}
+
+// ==================== PARTICLES ====================
+(function spawnParticles() {
+  const wrap = document.getElementById('particles');
+  for(let i = 0; i < 25; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    el.style.cssText = `
+      left:${Math.random()*100}%;
+      animation-delay:${Math.random()*8}s;
+      animation-duration:${6+Math.random()*8}s;
+      width:${1+Math.random()*3}px;
+      height:${1+Math.random()*3}px;
+      background:${Math.random()>0.5?'#00d4ff':'#7c3aed'};
+    `;
+    wrap.appendChild(el);
+  }
+})();
+
+// Check if admin token in URL on page load
+checkAdminOnLoad();
+</script>
+</body>
+</html>
