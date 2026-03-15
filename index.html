@@ -1775,6 +1775,52 @@ function isAdminSession() {
 }
 
 // Called once on page load — if admin token in URL, skip survey and show admin panel
+// ==================== EXCEL EXPORT ====================
+function showExcelButton() {
+  const wrap = document.getElementById('excelBtnWrap');
+  if (wrap) wrap.style.display = 'block';
+  const btnText = document.getElementById('excelBtnText');
+  if (btnText) btnText.textContent = lang === 'ar' ? '📊 تحميل إكسل' : '📊 DOWNLOAD EXCEL';
+}
+
+async function downloadExcel() {
+  const all = await getAllResponses();
+  if (!all || all.length === 0) { alert('No data to export.'); return; }
+  exportToExcel(all, 'ai_mirror_my_response');
+}
+
+async function adminDownloadExcel() {
+  const btn = document.querySelector('.adm-dl-btn');
+  if (btn) { btn.textContent = '⏳ Loading...'; btn.disabled = true; }
+
+  try {
+    const all = await getAllResponses();
+    if (!all || all.length === 0) { alert('No responses to export.'); return; }
+    exportToExcel(all, 'ai_mirror_all_responses');
+  } finally {
+    if (btn) { btn.innerHTML = '<span>📊</span><span>DOWNLOAD ALL AS EXCEL</span>'; btn.disabled = false; }
+  }
+}
+
+function exportToExcel(data, filename) {
+  if (typeof XLSX === 'undefined') { alert('Excel library not loaded. Please refresh.'); return; }
+
+  const headers = Object.keys(data[0]);
+  const rows = data.map(r => headers.map(h => r[h] ?? ''));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+  // Auto column widths
+  const colWidths = headers.map((h, i) => ({
+    wch: Math.max(h.length, ...rows.map(r => String(r[i] ?? '').length), 10)
+  }));
+  ws['!cols'] = colWidths;
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Responses');
+  XLSX.writeFile(wb, filename + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+
 function checkAdminOnLoad() {
   if (!isAdminSession()) return;
 
