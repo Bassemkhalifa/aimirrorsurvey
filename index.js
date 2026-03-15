@@ -1,6 +1,6 @@
 /**
  * AI Mirror Survey — Backend Server
- * Node.js + Express + MongoDB (Mongoose)
+ * Node.js + Express + MongoDB Atlas (Mongoose)
  *
  * Install:  npm install express mongoose cors
  * Run:      node server.js
@@ -18,13 +18,19 @@ const cors     = require('cors');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// ── MongoDB Connection ────────────────────────────────────────
-// Replace with your actual MongoDB URI (Atlas or local)
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ai_mirror_survey';
+// ── MongoDB Atlas Connection ──────────────────────────────────
+// ⚠️  ضع هنا الـ connection string الخاص بك من MongoDB Atlas
+// الصيغة: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/ai_mirror_survey?retryWrites=true&w=majority
+const MONGO_URI = 'mongodb+srv://khlyfhbasm71_db_user:kIJ00PKcJGognZaV@cluster0.6ibcc7y.mongodb.net/';
 
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('✅  MongoDB connected:', MONGO_URI))
-  .catch(err => console.error('❌  MongoDB connection error:', err));
+mongoose.connect(MONGO_URI, {
+  serverSelectionTimeoutMS: 10000,
+})
+  .then(() => console.log('✅  MongoDB Atlas connected'))
+  .catch(err => {
+    console.error('❌  MongoDB connection error:', err.message);
+    process.exit(1);
+  });
 
 // ── Schema ────────────────────────────────────────────────────
 const responseSchema = new mongoose.Schema({
@@ -64,7 +70,7 @@ app.use(express.json());
 app.use(express.static('.'));  // serve index.html from same folder
 
 // ── Admin token (must match ADMIN_TOKEN in index.html) ────────
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'SURVEY2025';
+const ADMIN_TOKEN = 'SURVEY2025';
 
 function requireAdmin(req, res, next) {
   const token = req.query.token || req.headers['x-admin-token'];
@@ -75,6 +81,11 @@ function requireAdmin(req, res, next) {
 }
 
 // ── Routes ────────────────────────────────────────────────────
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ ok: true, db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
+});
 
 // Save a new response (public — no token needed)
 app.post('/api/response', async (req, res) => {
@@ -89,12 +100,11 @@ app.post('/api/response', async (req, res) => {
   }
 });
 
-// Get all responses — requires admin token in query string
+// Get all responses — requires admin token
 // e.g. GET /api/responses?token=SURVEY2025
 app.get('/api/responses', requireAdmin, async (req, res) => {
   try {
     const all = await Response.find({}).sort({ createdAt: 1 }).lean();
-    // Strip MongoDB internal fields for clean export
     const clean = all.map(({ _id, __v, createdAt, updatedAt, ...rest }) => rest);
     res.json(clean);
   } catch (err) {
@@ -103,10 +113,10 @@ app.get('/api/responses', requireAdmin, async (req, res) => {
   }
 });
 
-// Delete responses by index — requires admin token in query string
+// Delete responses by index — requires admin token
 app.post('/api/responses/delete', requireAdmin, async (req, res) => {
   try {
-    const { indices } = req.body;  // array of 0-based indices
+    const { indices } = req.body;
     if (!Array.isArray(indices) || indices.length === 0) {
       return res.status(400).json({ error: 'No indices provided' });
     }
@@ -125,6 +135,5 @@ app.post('/api/responses/delete', requireAdmin, async (req, res) => {
 
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`🚀  Server running at http://localhost:${PORT}`);
-  console.log(`🔐  Admin panel: http://localhost:${PORT}/index.html?token=${ADMIN_TOKEN}`);
+  console.log(`🚀  Server running on port ${PORT}`);
 });
