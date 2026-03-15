@@ -435,6 +435,7 @@
     gap: 0;
     padding: 0;
     overflow: hidden;
+    background: var(--bg);
   }
 
   .adm-inner {
@@ -511,14 +512,43 @@
 
   .adm-preview-list {
     display: flex; flex-direction: column; gap: 6px;
-    flex: 1; min-height: 0; overflow: hidden;
+    flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
   }
 
   .adm-row {
     background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.12);
-    border-radius: 8px; padding: 8px 12px; font-size: 11px; line-height: 1.6;
-    flex-shrink: 0;
+    border-radius: 8px; padding: 7px 10px; font-size: 11px; line-height: 1.5;
+    flex-shrink: 0; display:flex; align-items:center; gap:8px;
+    transition: background 0.2s, border-color 0.2s;
   }
+  .adm-row.marked {
+    background: rgba(255,107,107,0.1); border-color: rgba(255,107,107,0.4);
+  }
+  .adm-row-cb {
+    width:16px; height:16px; flex-shrink:0; cursor:pointer;
+    accent-color:#ff6b6b;
+  }
+  .adm-row-info { flex:1; min-width:0; }
+
+  .adm-preview-header {
+    display:flex; align-items:center; justify-content:space-between;
+    flex-shrink:0; margin-bottom:2px;
+  }
+  .adm-del-btn {
+    padding:5px 14px; background:rgba(255,107,107,0.15);
+    border:1px solid rgba(255,107,107,0.4); color:#ff6b6b;
+    cursor:pointer; font-size:11px; font-family:'Orbitron',monospace;
+    letter-spacing:1px; border-radius:8px; transition:all 0.2s;
+    display:none;
+  }
+  .adm-del-btn.visible { display:block; }
+  .adm-del-btn:hover { background:rgba(255,107,107,0.3); }
+
+  .adm-sel-hint {
+    font-size:10px; color:var(--text-dim); letter-spacing:1px;
+  }
+
+  body.ar #prevBtn { direction: rtl; }
 
   .adm-empty {
     color: var(--accent2); font-size: 13px; text-align: center;
@@ -621,7 +651,6 @@
           <span id="scoreLabelText">SCORE</span>
           <span class="score-val" id="scoreDisplay">0</span>
         </div>
-        <button class="restart-btn" id="restartBtn" onclick="restart()">↩</button>
       </div>
     </div>
 
@@ -662,6 +691,10 @@
     </div>
 
     <div class="answers-area hidden" id="answersArea"></div>
+  <div id="navBtns" style="display:none;padding:4px 0 16px;max-width:560px;width:100%;margin:0 auto;display:flex;justify-content:space-between;align-items:center;">
+    <button id="prevBtn" onclick="goBack()" style="visibility:hidden;background:transparent;border:1px solid rgba(0,212,255,0.25);color:var(--text-dim);padding:9px 20px;cursor:pointer;font-size:12px;font-family:inherit;border-radius:8px;transition:all 0.3s;letter-spacing:1px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='rgba(0,212,255,0.25)';this.style.color='var(--text-dim)'">← BACK</button>
+    <button id="nextBtn" onclick="goForward()" style="visibility:hidden;background:transparent;border:1px solid rgba(0,212,255,0.25);color:var(--text-dim);padding:9px 20px;cursor:pointer;font-size:12px;font-family:inherit;border-radius:8px;transition:all 0.3s;letter-spacing:1px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='rgba(0,212,255,0.25)';this.style.color='var(--text-dim)'">NEXT →</button>
+  </div>
   </div>
 
   <!-- RESULT SCREEN -->
@@ -736,7 +769,10 @@
       </button>
 
       <div class="adm-preview">
-        <div class="adm-preview-title">Latest 10 Responses</div>
+        <div class="adm-preview-header">
+          <div class="adm-preview-title">ALL RESPONSES <span id="admSelHint" class="adm-sel-hint"></span></div>
+          <button class="adm-del-btn" id="admDelBtn" onclick="deleteSelected()">🗑 DELETE SELECTED</button>
+        </div>
         <div class="adm-preview-list" id="adminPreview">
           <div class="adm-empty">No responses yet.</div>
         </div>
@@ -841,11 +877,10 @@ const QUESTIONS_EN = [
     emoji: "⚠️",
     options: [
       {text:"A) Deciding life or death in wars.", pts:4},
-      {text:"B) Raising and caring for children.", pts:5},
+      {text:"B)  Teaching my kids values", pts:5},
       {text:"C) Being the judge in court.", pts:3},
-      {text:"D) Creative fields: art, music, writing.", pts:2},
-      {text:"E) Nowhere — let AI try everything!", pts:1},
-      {text:"F) ALL of the above — keep AI out!", pts:5}
+      {text:"D) Nowhere — let AI try everything!", pts:1},
+      
     ]
   },
   {
@@ -956,7 +991,7 @@ const QUESTIONS_EN = [
   // Extra Q (non-scored, shown as bonus)
   {
     part: "⚡ BONUS ROUND",
-    q: "Final face-off! 🤼 A human expert and AI completely disagree on something. Who do you trust? (Not scored!)",
+    q: "Final face-off! 🤼 A human expert and an AI both answer your question... but they disagree completely. Who you got? ",
     reaction: "wow",
     emoji: "⚖️",
     isBonus: true,
@@ -971,7 +1006,7 @@ const QUESTIONS_EN = [
   // Open question (text) - shown but not scored
   {
     part: "✍️ OPEN REFLECTION",
-    q: "If AI had never been invented, what's one small thing in your daily life that would be different? What would you miss most, and what would you be secretly relieved to lose? (Just a sentence or two!)",
+    q: "If AI had never been invented, what's one small thing in your daily life that would be different?",
     reaction: "thinking",
     emoji: "✍️",
     isOpen: true
@@ -1025,7 +1060,7 @@ const QUESTIONS_AR = [
       {text:"أ) مفيش الكالم ده، أنا آلة تركيز يباشا", pts:1},
       {text:"ب) نادرًا", pts:2},
       {text:"ج) شوف هو على حسب...", pts:3},
-      {text:"د) أومالا!! أنا بقيت شاطر في المعلومات العامة 😄", pts:4},
+      {text:"د) أومالا!! أنا بقيت شاطر في المعلومات العامة من شويه😄 ", pts:4},
       {text:"هـ) استنى! السؤال ده فكّرني أنا أصلاً كنت فاتح بعمل إيه؟!", pts:5}
     ]
   },
@@ -1080,7 +1115,7 @@ const QUESTIONS_AR = [
   },
   {
     part: null,
-    q: "تعال تخيل معايا: الأغنياء هما اللي عندهم access على الـ AI والباقي لا... مستقبل مرعب ولا عادي؟ 💸 (1=عادي → 5=أفلام الرعب دي)",
+    q: "تعال تخيل معايا: الأغنياء هما اللي عندهم access على الـ AI والباقي لا...  شايف ده مستقبل مرعب ولا عادي؟ 💸 (1=عادي → 5=أفلام الرعب دي)",
     reaction: "thinking",
     emoji: "💸",
     isSlider: true
@@ -1095,7 +1130,7 @@ const QUESTIONS_AR = [
       {text:"ب) صعبة أوي دي", pts:2},
       {text:"ج) كل شيء وارد... يمكن في المستقبل البعيد", pts:3},
       {text:"د) غالبًا آه، ويمكن يحصل على حياة عيننا كمان", pts:4},
-      {text:"هـ) واشوف ليه؟ احنا بدأنا أصلاً... أنت مش متابع؟!", pts:5}
+      {text:"هـ) واشوف ليه؟ احنا بدأنا أصلاً... أنت مش متابع؟! ", pts:5}
     ]
   },
   {
@@ -1105,7 +1140,7 @@ const QUESTIONS_AR = [
     emoji: "🌐",
     options: [
       {text:"أ) حيساعدنا طبعًا! ده إحنا اللي عملناه... حد برضو بيعض الإيد اللي اتمدتله؟! 🤝", pts:1},
-      {text:"ب) وأي حاجة هيتجاهلنا... الراجل مش هيبقى فاضي للكلام الفارغ ده", pts:3},
+      {text:"ب) ولا أي حاجة هيتجاهلنا... الراجل مش هيبقى فاضي للكلام الفارغ ده", pts:3},
       {text:"ج) هيسيطر على العالم! قولتلك صح بس بتحب ترغي كتير 😱", pts:5}
     ]
   },
@@ -1148,7 +1183,7 @@ const QUESTIONS_AR = [
   },
   {
     part: null,
-    q: "استحملت كل ده... لو انت وزميلك اتجادلتم في موضوع صعب وروحت سألت الـ AI وإجابته كانت منطقية جدًا. إيه الخطوة الجاية؟ 🧐",
+    q: "استحملت كل ده هتيجي على ديه...  لو انت وزميلك اتجادلتم في موضوع صعب وروحت سألت الـ AI وإجابته كانت منطقية جدًا. إيه الخطوة الجاية؟ 🧐",
     reaction: "thinking",
     emoji: "🧐",
     options: [
@@ -1201,7 +1236,7 @@ const QUESTIONS_AR = [
   // Open Q
   {
     part: "✍️ سؤال مفتوح",
-    q: "لو مكانش الإنسان اخترع الذكاء الاصطناعي، إيه التفاصيل الصغيرة في يومك اللي كانت هتختلف؟ إيه أكتر حاجة كنت هتفتقدها في وجوده؟ وإيه الحاجة اللي كنت هتكون مرتاح إنك أخيرًا عايش من غيرها؟",
+    q: "لو مكانش الإنسان اخترع الذكاء الاصطناعي، إيه التفاصيل الصغيرة في يومك اللي كانت هتختلف؟",
     reaction: "thinking",
     emoji: "✍️",
     isOpen: true
@@ -1338,6 +1373,8 @@ function submitDemo() {
     document.getElementById("scoreLabelText").textContent = "النقاط";
   }
   document.getElementById("gameScreen").classList.add("active");
+  const nb = document.getElementById('navBtns');
+  if (nb) nb.style.display = 'flex';
   currentQ = 0; totalScore = 0; allAnswers = [];
   showQuestion();
 }
@@ -1358,7 +1395,25 @@ function restart() {
 function showQuestion() {
   if(currentQ >= questions.length) { showResult(); return; }
   const q = questions[currentQ];
-  
+
+  // Find saved answer for this question (if revisiting)
+  const savedAnswer = allAnswers.find(a => a.qIndex === currentQ + 1);
+
+  // Update back button
+  const prevBtn = document.getElementById('prevBtn');
+  if (prevBtn) {
+    prevBtn.style.visibility = currentQ > 0 ? 'visible' : 'hidden';
+    prevBtn.textContent = lang === 'ar' ? '→ رجوع' : '← BACK';
+  }
+
+  // Update next button — only show if this question was already answered
+  const nextBtn = document.getElementById('nextBtn');
+  if (nextBtn) {
+    const hasForward = !!savedAnswer && currentQ < questions.length - 1;
+    nextBtn.style.visibility = hasForward ? 'visible' : 'hidden';
+    nextBtn.textContent = lang === 'ar' ? 'التالي ←' : 'NEXT →';
+  }
+
   // Update progress
   const progress = (currentQ / questions.length) * 100;
   document.getElementById('progressFill').style.width = progress + '%';
@@ -1385,6 +1440,7 @@ function showQuestion() {
   const oldEmoji = bubble.querySelector('.reaction-emoji');
   if(oldEmoji) oldEmoji.remove();
   
+  // Reduced delay: 350ms instead of ~1000ms
   setTimeout(() => {
     typingEl.classList.add('hidden');
     
@@ -1404,25 +1460,27 @@ function showQuestion() {
     // Answers
     setTimeout(() => {
       answersArea.classList.remove('hidden');
-      answered = false;
+      answered = !!savedAnswer;
       
       if(q.isOpen) {
         const div = document.createElement('div');
         div.className = 'open-q-area';
+        const savedText = savedAnswer ? savedAnswer.answer : '';
         div.innerHTML = `
-          <textarea class="open-textarea" id="openTextarea" placeholder="${lang === 'ar' ? 'اكتب إجابتك هنا...' : 'Type your answer here...'}"></textarea>
+          <textarea class="open-textarea" id="openTextarea" placeholder="${lang === 'ar' ? 'اكتب إجابتك هنا...' : 'Type your answer here...'}">${savedText}</textarea>
           <button class="submit-btn" onclick="submitOpen()">${lang === 'ar' ? 'تخطي / إرسال ←' : 'Submit / Skip →'}</button>
         `;
         answersArea.appendChild(div);
       } else if(q.isSlider) {
+        const savedVal = savedAnswer ? savedAnswer.answer : '3';
         const div = document.createElement('div');
         div.className = 'open-q-area';
         div.innerHTML = `
           <div style="padding:20px 0">
-            <input type="range" id="sliderVal" min="1" max="5" value="3" style="width:100%;accent-color:var(--accent);cursor:pointer" oninput="updateSlider(this.value)">
+            <input type="range" id="sliderVal" min="1" max="5" value="${savedVal}" style="width:100%;accent-color:var(--accent);cursor:pointer" oninput="updateSlider(this.value)">
             <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-top:8px">
               <span>${lang==='ar'?'مش مقلق':'Not worried'}</span>
-              <span id="sliderDisplay" style="color:var(--accent);font-size:20px;font-family:'Orbitron',monospace">3</span>
+              <span id="sliderDisplay" style="color:var(--accent);font-size:20px;font-family:'Orbitron',monospace">${savedVal}</span>
               <span>${lang==='ar'?'مقلق جداً':'Very worried'}</span>
             </div>
           </div>
@@ -1430,22 +1488,33 @@ function showQuestion() {
         `;
         answersArea.appendChild(div);
       } else {
-        const letters = ['A','B','C','D','E','F'];
-        const arLetters = ['أ','ب','ج','د','هـ','و'];
         q.options.forEach((opt, i) => {
           const btn = document.createElement('button');
           btn.className = 'answer-btn';
-          const letter = lang === 'ar' ? arLetters[i] : letters[i];
-          // Remove the letter prefix from text since it's already there in the option text
           const displayText = opt.text;
           btn.innerHTML = `<span>${displayText}</span>`;
           btn.style.animationDelay = (i * 0.07) + 's';
           btn.onclick = () => selectAnswer(btn, opt.pts, q.isBonus);
           answersArea.appendChild(btn);
         });
+
+        // Restore previously selected answer highlight
+        if (savedAnswer) {
+          const allBtns = answersArea.querySelectorAll('.answer-btn');
+          allBtns.forEach(b => {
+            const txt = b.querySelector('span') ? b.querySelector('span').textContent : '';
+            if (txt === savedAnswer.answer) {
+              b.style.opacity = '1';
+              b.style.borderColor = 'var(--accent)';
+              b.style.background = 'rgba(0,212,255,0.1)';
+            } else {
+              b.style.opacity = '0.5';
+            }
+          });
+        }
       }
-    }, 100);
-  }, 900 + Math.random() * 400);
+    }, 80);
+  }, 350);
 }
 
 function updateSlider(val) {
@@ -1492,20 +1561,33 @@ function selectAnswer(btn, pts, isBonus) {
   
   if(!isBonus) totalScore += pts;
   
-  // Track answer
+  // Track answer (replace existing answer for this question if revisiting)
   const qData = questions[currentQ];
-  allAnswers.push({
+  const existingIdx = allAnswers.findIndex(a => a.qIndex === currentQ + 1);
+  const answerObj = {
     qIndex: currentQ + 1,
     part: qData.part || '',
     question: qData.q,
     answer: btn.querySelector('span') ? btn.querySelector('span').textContent : '',
     pts: isBonus ? 'bonus' : pts
-  });
+  };
+  if (existingIdx >= 0) {
+    allAnswers[existingIdx] = answerObj;
+  } else {
+    allAnswers.push(answerObj);
+  }
 
   // Bot reaction based on score
   if(pts >= 4) triggerBotReaction('sad', pts >= 5 ? '😟' : '😬');
   else if(pts <= 1) triggerBotReaction('happy', '😄');
-  
+
+  // Show next button
+  const nextBtn = document.getElementById('nextBtn');
+  if (nextBtn) {
+    nextBtn.style.visibility = 'visible';
+    nextBtn.textContent = lang === 'ar' ? 'التالي ←' : 'NEXT →';
+  }
+
   setTimeout(nextQuestion, 700);
 }
 
@@ -1513,6 +1595,37 @@ function nextQuestion() {
   currentQ++;
   showQuestion();
 }
+
+function goBack() {
+  if (currentQ <= 0) return;
+  // Only remove answer if it's a fresh answer (not previously answered question)
+  const existingIdx = allAnswers.findIndex(a => a.qIndex === currentQ + 1);
+  if (existingIdx === -1) {
+    // Was unanswered, pop last if it matches current-1
+    const lastIdx = allAnswers.findIndex(a => a.qIndex === currentQ);
+    // recalc score after going back
+  }
+  currentQ--;
+  // Recalculate score from all saved answers up to currentQ
+  totalScore = 0;
+  allAnswers.forEach(a => {
+    if (typeof a.pts === 'number' && a.pts > 0 && a.qIndex <= currentQ) totalScore += a.pts;
+  });
+  showQuestion();
+}
+
+function goForward() {
+  if (currentQ >= questions.length - 1) return;
+  currentQ++;
+  // Recalculate score
+  totalScore = 0;
+  allAnswers.forEach(a => {
+    if (typeof a.pts === 'number' && a.pts > 0 && a.qIndex <= currentQ) totalScore += a.pts;
+  });
+  showQuestion();
+}
+
+
 
 // ==================== BOT REACTIONS ====================
 function triggerBotReaction(type, emoji) {
@@ -1645,17 +1758,8 @@ async function buildResponseDoc(score, category) {
 async function saveResponse(score, category) {
   const doc = await buildResponseDoc(score, category);
 
-  // Save to MongoDB (silent if offline)
-  try {
-    await fetch('http://localhost:3000/api/response', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(doc)
-    });
-  } catch (e) {}
-
-  // Always save to localStorage
-  saveToLocalStorage(doc);
+  // Save to MongoDB (with localStorage fallback)
+  await saveToMongo(doc);
 
   // Show Excel button ONLY if admin token is in URL
   if (isAdminSession()) showExcelButton();
@@ -1683,36 +1787,130 @@ function checkAdminOnLoad() {
   const panel = document.getElementById('adminPanel');
   if (panel) {
     panel.style.display = 'flex';
+    panel.style.flexDirection = 'column';
     refreshAdminPanel();
   }
 }
 
-function refreshAdminPanel() {
-  const all = getAllResponses();
+async function refreshAdminPanel() {
+  const preview = document.getElementById('adminPreview');
+  if (!preview) return;
+  preview.innerHTML = '<div class="adm-empty" style="color:var(--accent)">⏳ Loading from MongoDB...</div>';
+
+  const all = await getAllResponses();
   const countEl = document.getElementById('adminCount');
   if (countEl) countEl.textContent = all.length;
 
-  // Show last 5 entries preview
-  const preview = document.getElementById('adminPreview');
-  if (!preview) return;
   if (all.length === 0) {
     preview.innerHTML = '<div class="adm-empty">No responses yet.</div>';
+    updateDelBtn();
     return;
   }
-  const last10 = all.slice(-10).reverse();
-  preview.innerHTML = last10.map((r, i) => `
-    <div class="adm-row">
-      <span style="color:var(--accent);">#${all.length - i}</span>
-      &nbsp;·&nbsp; <span style="color:var(--text-dim);">Age:</span> <span style="color:var(--text)">${r.age || '—'}</span>
-      &nbsp;·&nbsp; <span style="color:var(--text-dim);">Field:</span> <span style="color:var(--text)">${(r.field||'—').split('/')[0].trim()}</span>
-      &nbsp;·&nbsp; <span style="color:var(--text-dim);">Score:</span> <span style="color:var(--accent3)">${r.score_out_of_100}/100</span>
-      &nbsp;·&nbsp; <span style="color:var(--text-dim);">Lang:</span> <span style="color:var(--text)">${r.language||'—'}</span>
-      &nbsp;·&nbsp; <span style="color:var(--text-dim)">${new Date(r.timestamp).toLocaleDateString()}</span>
-    </div>
-  `).join('');
+
+  // Show ALL responses newest first, each with a checkbox
+  const reversed = [...all].reverse();
+  preview.innerHTML = reversed.map((r, i) => {
+    const realIdx = all.length - 1 - i; // index in original array
+    return `
+    <div class="adm-row" id="admrow-${realIdx}">
+      <input class="adm-row-cb" type="checkbox" data-idx="${realIdx}"
+        onchange="onRowCheck(this)">
+      <div class="adm-row-info">
+        <span style="color:var(--accent);">#${all.length - i}</span>
+        &nbsp;·&nbsp;<span style="color:var(--text-dim)">Age:</span> <span style="color:var(--text)">${r.age||'—'}</span>
+        &nbsp;·&nbsp;<span style="color:var(--text-dim)">Field:</span> <span style="color:var(--text)">${(r.field||'—').split('/')[0].trim()}</span>
+        &nbsp;·&nbsp;<span style="color:var(--text-dim)">Score:</span> <span style="color:var(--accent3)">${r.score_out_of_100}/100</span>
+        &nbsp;·&nbsp;<span style="color:var(--text-dim)">Lang:</span> <span style="color:var(--text)">${r.language||'—'}</span>
+        &nbsp;·&nbsp;<span style="color:var(--text-dim)">${new Date(r.timestamp).toLocaleDateString()}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  updateDelBtn();
 }
 
-// ── LocalStorage helpers ──────────────────────────────────────
+function onRowCheck(cb) {
+  const row = document.getElementById('admrow-' + cb.dataset.idx);
+  if (row) row.classList.toggle('marked', cb.checked);
+  updateDelBtn();
+}
+
+function updateDelBtn() {
+  const checked = document.querySelectorAll('.adm-row-cb:checked');
+  const btn  = document.getElementById('admDelBtn');
+  const hint = document.getElementById('admSelHint');
+  if (!btn) return;
+  if (checked.length > 0) {
+    btn.classList.add('visible');
+    btn.textContent = `🗑 DELETE SELECTED (${checked.length})`;
+    if (hint) hint.textContent = `— ${checked.length} selected`;
+  } else {
+    btn.classList.remove('visible');
+    btn.textContent = '🗑 DELETE SELECTED';
+    if (hint) hint.textContent = '';
+  }
+}
+
+async function deleteSelected() {
+  const checked = [...document.querySelectorAll('.adm-row-cb:checked')];
+  if (checked.length === 0) return;
+
+  const idxsToDelete = new Set(checked.map(cb => parseInt(cb.dataset.idx)));
+  await deleteResponsesByIndex(idxsToDelete);
+  refreshAdminPanel();
+}
+
+// ── MongoDB API helpers ──────────────────────────────────────
+const API_BASE = 'http://localhost:3000/api';
+
+async function saveToMongo(doc) {
+  try {
+    const res = await fetch(`${API_BASE}/response`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(doc)
+    });
+    if (!res.ok) throw new Error('save failed');
+    const data = await res.json();
+    return data.count || 1;
+  } catch(e) {
+    console.warn('MongoDB save failed, falling back to localStorage', e);
+    return saveToLocalStorage(doc);
+  }
+}
+
+async function getAllResponses() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const token  = params.get('token') || '';
+    const res = await fetch(`${API_BASE}/responses?token=${encodeURIComponent(token)}`);
+    if (!res.ok) throw new Error('fetch failed');
+    return await res.json();
+  } catch(e) {
+    console.warn('MongoDB fetch failed, using localStorage', e);
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+  }
+}
+
+async function deleteResponsesByIndex(idxSet) {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const token  = params.get('token') || '';
+    const res = await fetch(`${API_BASE}/responses/delete?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ indices: [...idxSet] })
+    });
+    if (!res.ok) throw new Error('delete failed');
+  } catch(e) {
+    console.warn('MongoDB delete failed, using localStorage', e);
+    const all = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const kept = all.filter((_, i) => !idxSet.has(i));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(kept));
+  }
+}
+
+// ── LocalStorage fallback ──────────────────────────────────────
 const STORAGE_KEY = 'ai_survey_all_responses';
 
 function saveToLocalStorage(doc) {
@@ -1724,14 +1922,9 @@ function saveToLocalStorage(doc) {
   } catch(e) { return 0; }
 }
 
-function getAllResponses() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  } catch(e) { return []; }
-}
-
-function showExcelButton() {
-  const total = getAllResponses().length;
+async function showExcelButton() {
+  const all = await getAllResponses();
+  const total = all.length;
   const el    = document.getElementById('excelBtnWrap');
   if (!el) return;
   el.style.display = 'block';
@@ -1743,9 +1936,9 @@ function showExcelButton() {
   }
 }
 
-function downloadExcel() {
+async function downloadExcel() {
   if (!isAdminSession()) return;
-  const allDocs = getAllResponses();
+  const allDocs = await getAllResponses();
   if (allDocs.length === 0) return;
 
   const headers = Object.keys(allDocs[0]);
@@ -1762,8 +1955,8 @@ function downloadExcel() {
 }
 
 
-function adminDownloadExcel() {
-  const all = getAllResponses();
+async function adminDownloadExcel() {
+  const all = await getAllResponses();
   if (all.length === 0) return;
 
   const headers = Object.keys(all[0]);
