@@ -2,7 +2,7 @@
   "name": "ai-survey-backend",
   "version": "1.0.0",
   "description": "Backend for AI Mirror Survey — saves responses to MongoDB",
-  "main": "server.js",
+  "main": "index.js",
   "type":"commonjs",
   "scripts": {
     "start": "node index.js"
